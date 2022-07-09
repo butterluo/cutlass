@@ -435,13 +435,13 @@ public:
     return Status::kSuccess;
   }
 
-  /// Runs the kernel using initialized state.
+  /// Runs the kernel using initialized state. //BTBT bias_relu sm70
   Status run(cudaStream_t stream = nullptr) {
 
     ThreadblockSwizzle threadblock_swizzle;
 
-    dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);
-    dim3 block(GemmKernel::kThreadCount, 1, 1);
+    dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);//BTBT bias_relu 和get_tiled_shape结果一样(prblmSz/ShpThrdBlk.M向上取整,prblmSz/ShpThrdBlk.N向上取整,split_k_slices=1)
+    dim3 block(GemmKernel::kThreadCount, 1, 1);//BTBT bias_relu 见kernle/gemm.h的kThreadCount
 
     cudaError_t result;
 
@@ -561,11 +561,11 @@ class Gemm<ElementA_, LayoutA_, ElementB_, LayoutB_, ElementC_,
 
   using UnderlyingOperator = Gemm< 
     ElementB,
-    typename layout::LayoutTranspose<LayoutB>::type,
+    typename layout::LayoutTranspose<LayoutB>::type,//BTBT ??? 为何要transpose
     ElementA,
-    typename layout::LayoutTranspose<LayoutA>::type,
+    typename layout::LayoutTranspose<LayoutA>::type,//BTBT ??? 为何要transpose
     ElementC,
-    layout::RowMajor,    
+    layout::RowMajor,    //BTBT ??? 为何RowMajor
     ElementAccumulator,
     OperatorClass,
     ArchTag,

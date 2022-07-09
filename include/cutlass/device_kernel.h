@@ -42,9 +42,9 @@ void Kernel(typename Operator::Params params) {
   // Dynamic shared memory base pointer
   extern __shared__ int SharedStorageBase[];
 
-  // Declare pointer to dynamic shared memory.
+  // Declare pointer to dynamic shared memory.//BTBT ??? 若不使用动态smem会否更快?动态和静态的使用有不同?
   typename Operator::SharedStorage *shared_storage =
-      reinterpret_cast<typename Operator::SharedStorage *>(SharedStorageBase);
+      reinterpret_cast<typename Operator::SharedStorage *>(SharedStorageBase);//BTBT bias_relu sm70 在kernel/gemm.h#124定义的'union SharedStorage',注意union的用法
 
   Operator op;
 

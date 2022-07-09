@@ -1009,7 +1009,7 @@ public:
 /// Satisfies: ForwardTileIteratorConcept |
 ///            ReadableContiguousTileIteratorConcept |
 ///            WriteableContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70
 template <
   typename Shape_,
   typename Element_,
@@ -1341,7 +1341,7 @@ class RegularTileIterator<Shape_, Element_,
 /// Satisfies: ForwardTileIteratorConcept |
 ///            ReadableContiguousTileIteratorConcept |
 ///            WriteableContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70
 template <
   typename Shape_,
   typename Element_,

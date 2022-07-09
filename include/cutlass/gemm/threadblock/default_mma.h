@@ -187,7 +187,7 @@ template <
     typename InstructionShape,
     /// Operation performed by GEMM
     typename Operator
-    >
+    >//BTBT bias_relu sm70
 struct DefaultMma<ElementA, LayoutA, kAlignmentA, ElementB, LayoutB,
                   kAlignmentB, ElementAccumulator, layout::RowMajor,
                   arch::OpClassTensorOp, ArchTag, ThreadblockShape, WarpShape,

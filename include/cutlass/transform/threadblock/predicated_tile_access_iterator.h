@@ -311,7 +311,7 @@ class PredicatedTileAccessIterator;
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Specialization of PredicatedTileAccessIterator for pitch-linear data.
-///
+///BTBT bias_relu sm70
 template <typename Shape_, typename Element_, int AdvanceRank,
           typename ThreadMap_, typename AccessType_>
 class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,

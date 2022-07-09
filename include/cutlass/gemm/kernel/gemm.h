@@ -60,7 +60,7 @@ struct Gemm {
 
   /// Warp count (concept: GemmShape)
   using WarpCount = typename Mma::WarpCount;
-  static int const kThreadCount = 32 * WarpCount::kCount;
+  static int const kThreadCount = 32 * WarpCount::kCount; //BTBT bias_relu (ShapeMMAThreadBlock / ShapeMMAWarp)所得的M,N,K的乘积, 再乘以32
 
   /// Parameters structure
   struct Params {
@@ -100,7 +100,7 @@ struct Gemm {
     ):
       problem_size(problem_size),
       grid_tiled_shape(grid_tiled_shape),
-      swizzle_log_tile(ThreadblockSwizzle().get_log_tile(grid_tiled_shape)),
+      swizzle_log_tile(ThreadblockSwizzle().get_log_tile(grid_tiled_shape)),//BTBT bias_relu 因GemmIdentityThreadblockSwizzle<>故swizzle_log_tile为0
       params_A(ref_A.layout()),
       ref_A(ref_A),
       params_B(ref_B.layout()),
@@ -111,19 +111,19 @@ struct Gemm {
       ref_D(ref_D),
       output_op(output_op) {
 
-      int total_gemm_k_iterations = (problem_size.k() + Mma::Shape::kK - 1) / Mma::Shape::kK;
-      int gemm_k_iterations = (total_gemm_k_iterations + grid_tiled_shape.k() - 1) / grid_tiled_shape.k();
+      int total_gemm_k_iterations = (problem_size.k() + Mma::Shape::kK - 1) / Mma::Shape::kK;     //BTBT bias_relu (problem_size.K + ThreadBlock.K - 1) / ThreadBlock.K
+      int gemm_k_iterations = (total_gemm_k_iterations + grid_tiled_shape.k() - 1) / grid_tiled_shape.k(); //BTBT bias_relu (total_gemm_k_iterations + split_k_slices - 1) / split_k_slices
       
-      gemm_k_size = gemm_k_iterations * Mma::Shape::kK;
+      gemm_k_size = gemm_k_iterations * Mma::Shape::kK; //BTBT bias_relu gemm_k_iterations * ThreadBlock.K 也就是  ((problem_size.K + ThreadBlock.K - 1) / ThreadBlock.K) * ThreadBlock.K
 
     semaphore = workspace;
     }
   };
 
   /// Shared memory storage structure
-  union SharedStorage {
-    typename Mma::SharedStorage main_loop;
-    typename Epilogue::SharedStorage epilogue;
+  union SharedStorage {//BTBT *** 注意这里union的用法
+    typename Mma::SharedStorage main_loop;    //在mma_pipelined.h所继承的mma_base.h中
+    typename Epilogue::SharedStorage epilogue;//在default_gemm.h-> default_epilogue_volta_tensor_op.h中
   };
 
   //
@@ -183,7 +183,7 @@ struct Gemm {
     return Status::kSuccess;
   }
 
-  /// Executes one GEMM
+  /// Executes one GEMM //BTBT bias_relu sm70
   CUTLASS_DEVICE
   void operator()(Params const &params, SharedStorage &shared_storage) {
 
@@ -191,8 +191,7 @@ struct Gemm {
     ThreadblockSwizzle threadblock_swizzle;
 
     cutlass::gemm::GemmCoord threadblock_tile_offset =
-        threadblock_swizzle.get_tile_offset(params.swizzle_log_tile);
-
+        threadblock_swizzle.get_tile_offset(params.swizzle_log_tile);//BTBT bias_relu threadblock_tile_offset为(blkIdx.x,blkIdx.y,blkIdx.z), 而gridDim为(prblmSz/ShpThrdBlk.M向上取整,prblmSz/ShpThrdBlk.N向上取整,split_k_slices=1)
     // Early exit if CTA is out of range
     if (params.grid_tiled_shape.m() <= threadblock_tile_offset.m() ||
       params.grid_tiled_shape.n() <= threadblock_tile_offset.n()) {
@@ -202,8 +201,8 @@ struct Gemm {
 
     // Compute initial location in logical coordinates
     cutlass::MatrixCoord tb_offset_A{
-      threadblock_tile_offset.m() * Mma::Shape::kM,
-      threadblock_tile_offset.k() * params.gemm_k_size,
+      threadblock_tile_offset.m() * Mma::Shape::kM,           //BTBT bias_relu blkIdx.x * ShpThrdBlk
+      threadblock_tile_offset.k() * params.gemm_k_size,       //BTBT bias_relu 0*gemm_k_sz
     };
 
     cutlass::MatrixCoord tb_offset_B{
@@ -212,18 +211,18 @@ struct Gemm {
     };
 
     // Problem size is a function of threadblock index in the K dimension
-    int problem_size_k = min(
+    int problem_size_k = min(//BTBT bias_relu min( problem_size.K, (blkIdx.z + 1)*gemm_k_size ) 因 blkIdx.z=0 故 min( problem_size.K, gemm_k_size )=>problem_size.K
       params.problem_size.k(), 
       (threadblock_tile_offset.k() + 1) * params.gemm_k_size);
 
     // Compute threadblock-scoped matrix multiply-add
-    int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;
+    int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;//BTBT bias_relu (pblmSz.K - 0 + ShpThrdBlk)/ShpThrdBlk 即(pblmSz.K/ShpThrdBlk)向上取整
 
     // Compute position within threadblock
     int thread_idx = threadIdx.x;
 
     // Construct iterators to A and B operands
-    typename Mma::IteratorA iterator_A(
+    typename Mma::IteratorA iterator_A(//BTBT bias_relu sm70 在default_mma.h#191中设置Mma为mma_pipelined.h它的IteratorA为PredicatedTileIterator@predicated_tile_iterator.h#608#145
       params.params_A,
       params.ref_A.data(),
       {params.problem_size.m(), problem_size_k},
@@ -247,9 +246,9 @@ struct Gemm {
     //
 
     // Construct thread-scoped matrix multiply
-    Mma mma(shared_storage.main_loop, thread_idx, warp_idx, lane_idx);
+    Mma mma(shared_storage.main_loop, thread_idx, warp_idx, lane_idx);//BTBT shared_storage.main_loop使用的是mma_base.h中SharedStorage的定义
 
-    typename Mma::FragmentC accumulators;
+    typename Mma::FragmentC accumulators; //BTBT bias_relu mma_pipelined.h<-default_mma.h#214<-dfault_mma_core_sm70.h#511#499<-mma_tensor_op_sm70.h#179FragmentC 就是 Array<elemC,shpWrp中thread总数除以32>
 
     accumulators.clear();
 

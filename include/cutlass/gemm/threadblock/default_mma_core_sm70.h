@@ -385,7 +385,7 @@ template <
     /// Layout of accumulator
     typename LayoutC_,
     /// Operation performed by GEMM
-    typename Operator_>
+    typename Operator_>//BTBT bias_relu sm70
 struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
                       layout::RowMajor, ElementB_, layout::RowMajor, ElementC_,
                       LayoutC_, arch::OpClassTensorOp, 2, Operator_
@@ -444,10 +444,10 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
 
   /// ThreadMap of iterator A
   using IteratorThreadMapA = transform::PitchLinearWarpRakedThreadMap<
-    layout::PitchLinearShape<Shape::kK, Shape::kM>,
-    kThreads,
+    layout::PitchLinearShape<Shape::kK, Shape::kM>,//<shpThrdBlk.K, shpThrdBlk.M>
+    kThreads,//通过计算shpThrdBlk/shpWrp得到一个tileOfBlk中有多少个tileOfWrp,然后乘wrpSz得到一个tileOfBlk中的thread总数,这里是128
     layout::PitchLinearShape<4, 8>,
-    kAccessSizeInBits / sizeof_bits<ElementA>::value
+    kAccessSizeInBits / sizeof_bits<ElementA>::value//128/16=8
   >;
 
   /// Shared memory iterator to A operand
@@ -505,7 +505,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
     ElementC,
     LayoutC,
     Policy
-  >;
+  >;//BTBT bias_relu sm70
 
   /// Policy used to define MmaPipelined 
   using MmaPolicy = MmaPolicy<

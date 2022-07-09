@@ -62,7 +62,7 @@ int RematerializeThreadIdxZ() {
   return threadIdx.z;
 }
 
-/// Helper to rematerialize block Idx. Reduces register liveness.
+/// Helper to rematerialize block Idx. Reduces register liveness. //BTBT
 CUTLASS_DEVICE
 int RematerializeBlockIdxX() {
   return blockIdx.x;
@@ -100,7 +100,7 @@ int RematerializeBlockDimZ() {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Threadblock swizzling function for GEMMs
+/// Threadblock swizzling function for GEMMs //BTBT bias_relu 
 template <int N = 1>
 struct GemmIdentityThreadblockSwizzle {
 
@@ -183,7 +183,7 @@ struct GemmIdentityThreadblockSwizzle {
     int block_idx_z = RematerializeBlockIdxZ();
 
     return GemmCoord{(block_idx_x >> log_tile),  //
-                     (block_idx_y << log_tile) + ((block_idx_x) & ((1 << (log_tile)) - 1)),
+                     (block_idx_y << log_tile) + ((block_idx_x) & ((1 << (log_tile)) - 1)),//BTBT ??? 按位与的作用
                      block_idx_z};
   }
 

@@ -938,7 +938,7 @@ struct ColumnMajorVoltaTensorOpMultiplicandCrosswise {
 };
 
 /// Template mapping a row-major view of pitch-linear memory to
-/// TensorOpMultiplicandCrosswise
+/// TensorOpMultiplicandCrosswise //BTBT bias_relu sm70
 template <int ElementSize, int KBlock>
 struct RowMajorVoltaTensorOpMultiplicandCrosswise {
   /// Logical rank of tensor

@@ -453,7 +453,7 @@ template <
   typename Operator,
   /// Use zfill or predicate for out-of-bound cp.async
   SharedMemoryClearOption SharedMemoryClear
->
+>//BTBT bias_relu sm70
 struct DefaultGemm<
   ElementA, LayoutA, kAlignmentA,
   ElementB, LayoutB, kAlignmentB,

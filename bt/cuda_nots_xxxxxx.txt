@@ -1,0 +1,25 @@
+必须按threadIdx.x连续取值,否则有stride access
+复习 bank conflict
+
+调用流程:
+gemm_bias_relu.cu#102#201#212->
+    device/gemm.h的operator()()->
+        device_kernel.h的Kernel()(这是cuda kernel)->
+            kernel/gemm.h(在default_gemm.h#506初始化)的operator()()->通过'mma('调用
+                mma_pipelined.h(在default_gemm.h#476初始化)的operator()()->通过'warp_mma'调用
+                    mma_tensor_op_sm70.h(在default_mma.h#196#214<-default_mma_core_sm70.h#499#511初始化)的MmaVoltaTensorOp.operator()()->通过'mma('调用
+                        mma_sm70.h#522(在default_mma_core_sm70.h#484#485#507初始化)的Mma.operator()()
+
+数据流向:
+device_kernel.h中初始化动态smem???具体用了那种数据结构<-
+predicated_tile_iterator.h#333中pred_guard怎么计算
+reg到smem的regular_tile_iterator_tensor_op_sm70.h#1187没有像少侠那样用汇编写入smem,但后者却又多了次smem的地址转换,哪种比较快?
+
+
+
+
+数据形状变化:
+
+计算坐标变化:
+
+

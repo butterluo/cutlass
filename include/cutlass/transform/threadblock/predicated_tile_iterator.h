@@ -142,7 +142,7 @@ class PredicatedTileIterator;
 ///            ReadableContiguousTileIteratorConcept | 
 ///            WriteableContiguousTileIteratorConcept |
 ///            MaskedTileIteratorConcept
-///
+///BTBT bias_relu sm70 <-#608
 template <typename Shape_, typename Element_, int AdvanceRank,
           typename ThreadMap_, int AccessSize>
 class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
@@ -170,7 +170,7 @@ class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
   using NonConstPointer = typename platform::remove_const<Element>::type *;
 
   /// Type used for internal memory accesses
-  using AccessType = AlignedArray<Element, AccessSize, (AccessSize * sizeof_bits<Element>::value / 8)>;
+  using AccessType = AlignedArray<Element, AccessSize, (AccessSize * sizeof_bits<Element>::value / 8)>;//BTBT AccessSize=128/half(见default_gemm_configuration.h#149),所以AlignedArray.Alignment=8*16/8=16 定义在array.h#551中
 
   /// Underlying iterator to compute the addresses
   using TileAccessIterator =
@@ -310,15 +310,15 @@ class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
   CUTLASS_DEVICE
   void load_with_byte_offset(Fragment &frag, LongIndex byte_offset) {
 
-    AccessType *frag_ptr = reinterpret_cast<AccessType *>(&frag);
+    AccessType *frag_ptr = reinterpret_cast<AccessType *>(&frag);//BTBT 相当于Array<half_t, 4*8>(mma_piplined.h#195注释)再加上AlignedArray.Alignment=16
 
     CUTLASS_PRAGMA_UNROLL
-    for (int s = 0; s < ThreadMap::Iterations::kStrided; ++s) {
+    for (int s = 0; s < ThreadMap::Iterations::kStrided; ++s) {//BTBT A:kStrided=4; B:2
       CUTLASS_PRAGMA_UNROLL
-      for (int c = 0; c < ThreadMap::Iterations::kContiguous; ++c) {
+      for (int c = 0; c < ThreadMap::Iterations::kContiguous; ++c) {//BTBT A:kContiguous=1; B:2
 
         CUTLASS_PRAGMA_UNROLL
-        for (int v = 0; v < kAccessesPerVector; ++v) {
+        for (int v = 0; v < kAccessesPerVector; ++v) {//BTBT kAccessesPerVector=1
 
           int idx = v + kAccessesPerVector * (c + s * ThreadMap::Iterations::kContiguous);
           
@@ -597,7 +597,7 @@ public:
 ///            ReadableContiguousTileIteratorConcept | 
 ///            WriteableContiguousTileIteratorConcept |
 ///            MaskedTileIteratorConcept
-///
+/// //BTBT bias_relu sm70
 template <
   typename Shape_,
   typename Element_,
@@ -640,7 +640,7 @@ public:
   using AccessType = typename UnderlyingIterator::AccessType;
 
   /// Fragment object to be loaded or stored
-  using Fragment = cutlass::Array<Element, ThreadMap::Iterations::kCount * ThreadMap::kElementsPerAccess>;
+  using Fragment = cutlass::Array<Element, ThreadMap::Iterations::kCount * ThreadMap::kElementsPerAccess>;//BTBT A:kCount=1*4,kElementsPerAccess=8
 
   /// Predicate vector stores mask to guard accesses
   using Mask = typename UnderlyingIterator::Mask;
@@ -683,7 +683,7 @@ public:
 
   /// Constructs a TileIterator from its precomputed state, threadblock offset, and thread ID
   CUTLASS_HOST_DEVICE
-  PredicatedTileIterator(
+  PredicatedTileIterator(//BTBT 在kernel/gemm.h#225被调
     Params const &params,                         ///< Precomputed parameters object 
     Pointer pointer,                              ///< Pointer to start of tensor
     TensorCoord extent,                           ///< Extent of tensor

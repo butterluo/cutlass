@@ -518,7 +518,7 @@ struct Mma<
   }
 };
 
-/// Matrix multiply-add operation: F32 = F16 * F16 + F32
+/// Matrix multiply-add operation: F32 = F16 * F16 + F32  //BTBT bias_relu sm70
 template <>
 struct Mma<
   gemm::GemmShape<8, 8, 4>,
@@ -596,7 +596,7 @@ struct Mma<
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Matrix multiply-add operation specialized for the entire warp
+/// Matrix multiply-add operation specialized for the entire warp //BTBT bias_relu sm70
 template <
   typename LayoutA,
   typename LayoutB,

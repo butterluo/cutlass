@@ -55,7 +55,7 @@ namespace warp {
 
 /// Structure to compute the matrix product targeting CUDA cores and SIMT math instructions.
 template <
-  /// Size of the Gemm problem - concept: gemm::GemmShape<>
+  /// Size of the Gemm problem - concept: gemm::GemmShape<>//BTBT bias_relu sm70 SharpWarp<64,64,32>
   typename Shape_,
   /// Data type of A elements
   typename ElementA_,
@@ -106,7 +106,7 @@ public:
   /// Architecture tag
   using ArchTag = arch::Sm70;
 
-  /// Underlying matrix multiply operator (concept: arch::Mma)
+  /// Underlying matrix multiply operator (concept: arch::Mma) //BTBT bias_relu sm70 warp::MmaTensorOpPolicy->arch::Mma
   using ArchMmaOperator = typename Policy::Operator;
 
   /// Indicates math operator 
@@ -138,7 +138,7 @@ public:
     Operand::kA,
     ElementA,
     LayoutA,
-    MatrixShape<
+    MatrixShape<//arch::Mma::Shape<M,N,K>=<16,16,4>
       ArchMmaOperator::Shape::kM,
       ArchMmaOperator::Shape::kK
     >,
@@ -187,7 +187,7 @@ private:
 
   /// Number of mma operations performed
   using MmaIterations = MatrixShape<
-    InterleavedTileShape::kM / ArchMmaOperator::Shape::kM,
+    InterleavedTileShape::kM / ArchMmaOperator::Shape::kM,//BTBT bias_relu sm70 warp::MmaTensorOpPolicy->arch::Mma Sharp<16,16,4>
     InterleavedTileShape::kN / ArchMmaOperator::Shape::kN
   >;
   using TileIterations = MatrixShape<

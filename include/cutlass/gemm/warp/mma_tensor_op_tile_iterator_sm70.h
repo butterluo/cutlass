@@ -390,7 +390,7 @@ public:
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70 <-#905
 template <
     /// Size of the matrix to load (concept: PitchLinearShape)
     typename Shape_,
@@ -901,7 +901,7 @@ public:
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70
 template <
     /// Size of the matrix to load (concept: MatrixShape)
     typename Shape_,
@@ -1472,7 +1472,7 @@ public:
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70
 template <
     /// Size of the matrix to load (concept: PitchLinearShape)
     typename Shape_,
@@ -1567,10 +1567,10 @@ class MmaVoltaTensorOpMultiplicandTileIterator<
   // Derived quantities
   //
 
-  /// Fragment object holding a thread's part of a tile
+  /// Fragment object holding a thread's part of a tile //BTBT ShpWrp<64,64,32>. A:Shape<M64,K32>,InstrShp<M64,K4> 
   using Fragment =
       Array<Element,
-            Shape::kStrided * InstructionShape::kContiguous / kThreads * 2>;
+            Shape::kStrided * InstructionShape::kContiguous / kThreads * 2>;//BTBT A:32*16/32*2=32
 
  private:
 
@@ -2032,9 +2032,9 @@ class MmaVoltaTensorOpMultiplicandTileIterator<
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70
 template <
-    /// Size of the matrix to load (concept: MatrixShape)
+    /// Size of the matrix to load (concept: MatrixShape)//BTBT SharpWarp<64,64,32> -> A:<M,K>=<64,32>,B:<K,N>=<32,64>
     typename Shape_,
     /// Identifies A or B multiplicand
     Operand Operand_,

@@ -202,7 +202,7 @@ struct PitchLinearTilePolicyStripminedThreadStrided
 /// Policy defining a warp-raked arrangement in which a shape is partitioned into contiguous
 /// elements.
 ///
-/// This ThreadMap is used by tensor core kernels.
+/// This ThreadMap is used by tensor core kernels. //BTBT bias_relu sm70 <-default_mma_core_sm70.h<-default_mma.h<-default_gemm.h
 template <
   typename Shape_,
   int Threads,
@@ -218,7 +218,7 @@ struct PitchLinearWarpRakedThreadMap {
   using Shape = Shape_;
 
   /// Number of threads total
-  static int const kThreads = Threads;
+  static int const kThreads = Threads;//A和B都是128
 
   /// Extract vector length from Layout
   static int const kElementsPerAccess = ElementsPerAccess;
@@ -229,14 +229,14 @@ struct PitchLinearWarpRakedThreadMap {
   /// Internal details made public to facilitate introspection
   struct Detail {
 
-    /// Fixed arrangement of threads within a warp (units of threads).
+    /// Fixed arrangement of threads within a warp (units of threads).//A:PitchLinearShape<4, 8>,B:<8,4>
     using WarpThreadArrangement = WarpThreadArrangement_;
 
     /// Number of threads per warp
     static int const kWarpSize = WarpThreadArrangement::kCount;
 
     /// Number of participating warps
-    static int const kWarpCount = kThreads / kWarpSize;
+    static int const kWarpCount = kThreads / kWarpSize;//A和B都是128/32=4
 
     static_assert(
       !(Shape::kContiguous % kElementsPerAccess),
@@ -244,8 +244,8 @@ struct PitchLinearWarpRakedThreadMap {
 
     /// Compute the 'shape' of the overall tile in units of vectors
     using ShapeInAccesses = layout::PitchLinearShape<
-      Shape::kContiguous / kElementsPerAccess,
-      Shape::kStrided
+      Shape::kContiguous / kElementsPerAccess,//A:shpThrdBlk.K/8, B:shpThrdBlk.N/8
+      Shape::kStrided//A:shpThrdBlk.M, B:shpThrdBlk.K
     >;
 
     static_assert(
@@ -258,8 +258,8 @@ struct PitchLinearWarpRakedThreadMap {
 
     // compute number of warp-level accesses total
     using WarpAccessIterations = layout::PitchLinearShape<
-      ShapeInAccesses::kContiguous / WarpThreadArrangement::kContiguous,
-      ShapeInAccesses::kStrided / WarpThreadArrangement::kStrided
+      ShapeInAccesses::kContiguous / WarpThreadArrangement::kContiguous,//A:shpThrdBlk.K/8/4,这里是32/8/4=1; B:shpThrdBlk.N/8/4,这里是128/8/8=2
+      ShapeInAccesses::kStrided / WarpThreadArrangement::kStrided//A:shpThrdBlk.M/8,这里是128/8=16; B:shpThrdBlk.K/4,这里是32/4=8
     >;
 
     // Divide it into the number of warps, first partitioning the strided dimension then the
@@ -282,8 +282,8 @@ struct PitchLinearWarpRakedThreadMap {
 
   ///< Iterations along each dimension (concept: PitchLinearShape)
   using Iterations = layout::PitchLinearShape<
-    Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous,
-    Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided
+    Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous, //A:1/1=1; B:2/1=2
+    Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided  //A:16/4=4: B:8/4=2
   >;
 
   static_assert(Iterations::kCount,

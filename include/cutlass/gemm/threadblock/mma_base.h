@@ -101,7 +101,7 @@ class MmaBase {
   using WarpGemm = typename Policy::Operator::Shape;
 
   /// Shape describing the number of warps filling the CTA
-  using WarpCount = GemmShape<Shape::kM / WarpGemm::kM,
+  using WarpCount = GemmShape<Shape::kM / WarpGemm::kM,//BTBT bias_relu ShapeMMAThreadBlock / ShapeMMAWarp
                               Shape::kN / WarpGemm::kN,
                               Shape::kK / WarpGemm::kK>;
 

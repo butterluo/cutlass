@@ -52,10 +52,10 @@ template <
   /// Size of the Gemm problem - concept: gemm::GemmShape<>
   typename Shape_,
   /// Iterates over tiles of A operand in global memory 
-  //  (concept: ReadableTileIterator | ForwardTileIterator | MaskedTileIterator)
+  //  (concept: ReadableTileIterator | ForwardTileIterator | MaskedTileIterator) //BTBT bias_relu sm70 PredicatedTileIterator
   typename IteratorA_,
   /// Iterates over tiles of A operand in shared memory
-  /// (concept: WriteableTileIterator | RandomAccessTileIterator)
+  /// (concept: WriteableTileIterator | RandomAccessTileIterator) //BTBT bias_relu sm70 RegularTileIterator
   typename SmemIteratorA_,
   /// Iterates over tiles of B operand in global memory
   //  (concept: ReadableTileIterator | ForwardTileIterator | MaskedTileIterator)
@@ -67,13 +67,13 @@ template <
   typename ElementC_,
   /// Data type of accumulator matrix
   typename LayoutC_,
-  /// Policy describing tuning details (concept: MmaPolicy)
+  /// Policy describing tuning details (concept: MmaPolicy) ///BTBT bias_relu sm70 MmaPolicy<MmaVoltaTensorOp..>
   typename Policy_,
   /// Transformation applied to A operand
   typename TransformA_ = NumericArrayConverter<
-    typename SmemIteratorA_::Element, 
-    typename IteratorA_::Element, 
-    IteratorA_::Fragment::kElements>,
+    typename SmemIteratorA_::Element, //BTBT half_t
+    typename IteratorA_::Element,  //BTBT half_t
+    IteratorA_::Fragment::kElements>,  //BTBT predicated_tile_iterator.h#643 4*8=32
   ///
   /// Transformation applied to B operand
   typename TransformB_ = NumericArrayConverter<
@@ -153,7 +153,7 @@ public:
     int warp_idx,                                       ///< ID of warp
     int lane_idx                                        ///< ID of each thread within a warp
   ):
-    Base(shared_storage, thread_idx, warp_idx, lane_idx),
+    Base(shared_storage, thread_idx, warp_idx, lane_idx),//BTBT 里面初始化了warp_tile_iterator_A_&B
     smem_iterator_A_(shared_storage.operand_A_ref(), thread_idx),
     smem_iterator_B_(shared_storage.operand_B_ref(), thread_idx) {
 
@@ -179,8 +179,8 @@ public:
   void operator()(
     int gemm_k_iterations,                            ///< number of iterations of the mainloop
     FragmentC &accum,                                 ///< destination accumulator tile
-    IteratorA iterator_A,                             ///< iterator over A operand in global memory
-    IteratorB iterator_B,                             ///< iterator over B operand in global memory
+    IteratorA iterator_A,                             ///< iterator over A operand in global memory //BTBT bias_relu sm70 predicated_tile_iterator.h#608#145
+    IteratorB iterator_B,                             ///< iterator over B operand in global memory //BTBT bias_relu sm70 predicated_tile_iterator.h#608#145
     FragmentC const &src_accum,                       ///< source accumulator tile
     TransformA transform_A = TransformA(),            ///< transformation applied to A fragment
     TransformB transform_B = TransformB()) {          ///< transformation applied to B fragment
@@ -191,22 +191,22 @@ public:
 
     // Perform accumulation in the 'd' output operand
     accum = src_accum;
-
-    FragmentA tb_frag_A;
-    FragmentB tb_frag_B;
+    //BTBT IteratorA:Fragment=Array<half_t, 4*8>//kCount=1*4,kElementsPerAccess=8//predicated_tile_iterator.h#643<pitch_linear_thread_map.h#284
+    FragmentA tb_frag_A;//BTBT A:[shpThrdBlk.K*(128/bitOf(half))/4/1_]=1 * [(shpThrdBlk.M/8) / ((shpThrdBlk/shpWrp).MNK*wrpSz/(4*8))_]=4 ->Array<half_t, 4*8>(kElementsPerAccess=8)
+    FragmentB tb_frag_B;//BTBT B:[shpThrdBlk.N*(128/bitOf(half))/8/1_]=2 * [(shpThrdBlk.K/4) / ((shpThrdBlk/shpWrp).MNK*wrpSz/(8*4))_]=2 ->Array<half_t, 4*8>(kElementsPerAccess=8)
 
     tb_frag_A.clear();
     tb_frag_B.clear();
 
     // The last kblock is loaded in the prolog
-    iterator_A.load(tb_frag_A);
-    iterator_B.load(tb_frag_B);
+    iterator_A.load(tb_frag_A);//BTBT IteratorA predicated_tile_iterator.h#343#311用到了predicated_tile_access_iterator.h#315计算内存位置,然后用memory.h中的cutlass::arch::global_load的汇编把数据加载进来
+    iterator_B.load(tb_frag_B);//BTBT iterator_A&B在kernel/gemm.h的operator()()中初始化. 这里是从glb到reg.
 
     ++iterator_A;
     ++iterator_B;
 
-    this->smem_iterator_A_.store(transform_A(tb_frag_A));
-    this->smem_iterator_B_.store(transform_B(tb_frag_B));
+    this->smem_iterator_A_.store(transform_A(tb_frag_A));//SmemIteratorA<-'regular_tile_iterator_tensor_op_sm70.h#1352并使用了tensor_op_multiplicand_sm70.h#943'<-default_mma_core_sm70.h#434#454
+    this->smem_iterator_B_.store(transform_B(tb_frag_B));//BTBT ??? TransformA和B不知道template是调了numeric_conversion.h#666还是#697,如果都是half的话,前者做了多余的类型转换
 
     ++this->smem_iterator_A_;
     ++this->smem_iterator_B_;
@@ -214,11 +214,11 @@ public:
     __syncthreads();
 
     // Pair of fragments used to overlap shared memory loads and math instructions
-    WarpFragmentA warp_frag_A[2];
-    WarpFragmentB warp_frag_B[2];
-
-    this->warp_tile_iterator_A_.set_kgroup_index(0);
-    this->warp_tile_iterator_B_.set_kgroup_index(0);
+    WarpFragmentA warp_frag_A[2];//BTBT =Array<half,32*16/32*2><-mma_tensor_op_tile_iterator_sm70.h#1571#2050<-mma_tensor_op_sm70.h#136<-default_mma_core_sm70.h#499<-default_gemm.h
+    WarpFragmentB warp_frag_B[2];//BTBT =Array<half,32*16/32*2><-mma_tensor_op_tile_iterator_sm70.h#483#905...
+    //BTBT bias_relu sm70 warp_tile_iterator_A_和B都是MmaPolicy.MmaVoltaTensorOp::MmaVoltaTensorOpMultiplicandTileIterator
+    this->warp_tile_iterator_A_.set_kgroup_index(0);//BTBT warp_tile_iterator_A_在父类mma_base.h中初始化,包含了指向smem的指针.来自mma_tensor_op_tile_iterator_sm70.h#1476#2050
+    this->warp_tile_iterator_B_.set_kgroup_index(0);//BTBT warp_tile_iterator_B_在父类mma_base.h中初始化,包含了指向smem的指针.来自mma_tensor_op_tile_iterator_sm70.h#394#905
 
     this->warp_tile_iterator_A_.load(warp_frag_A[0]);
     this->warp_tile_iterator_B_.load(warp_frag_B[0]);
@@ -226,7 +226,7 @@ public:
     ++this->warp_tile_iterator_A_;
     ++this->warp_tile_iterator_B_;
 
-    Operator warp_mma;
+    Operator warp_mma;//BTBT mma_tensor_op_sm70.h
 
     int smem_write_stage_idx = 1;
 
@@ -249,7 +249,7 @@ public:
       //
 
       CUTLASS_PRAGMA_UNROLL
-      for (int warp_mma_k = 0; warp_mma_k < Base::kWarpGemmIterations; ++warp_mma_k) {
+      for (int warp_mma_k = 0; warp_mma_k < Base::kWarpGemmIterations; ++warp_mma_k) {//BTBT kWarpGemmIterations=shpWrp.K/arch::Mma::Sharp.K=32/4=8
 
         // Load warp-level tiles from shared memory, wrapping to k offset if this is the last group
         // as the case may be.
