@@ -1,5 +1,7 @@
 必须按threadIdx.x连续取值,否则有stride access
 复习 bank conflict
+https://gcc.gnu.org/onlinedocs/gcc/index.html#SEC_Contents , https://zhuanlan.zhihu.com/p/348372132 
+https://github.com/NVIDIA/cutlass/blob/master/media/docs/terminology.md
 
 调用流程:
 gemm_bias_relu.cu#102#201#212->
