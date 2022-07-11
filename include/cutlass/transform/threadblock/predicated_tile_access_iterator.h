@@ -77,7 +77,7 @@ class PredicatedTileAccessIteratorPredicates {
 
   using TensorCoord = typename Layout::TensorCoord;
 
-  static int const kAccessesPerVector = ThreadMap::kElementsPerAccess / AccessType::kElements;
+  static int const kAccessesPerVector = ThreadMap::kElementsPerAccess / AccessType::kElements;//BTBT AccessType::kElements=predicated_tile_iterator中AccessSize,也就是8. 这里8/8=1
 
   static_assert(!(ThreadMap::kElementsPerAccess % AccessType::kElements),
     "Vectors implied by the thread map must be divisible by the access type.");
@@ -145,8 +145,8 @@ class PredicatedTileAccessIteratorPredicates {
       int c = access_residual / kAccessesPerVector;
       int v = access_residual % kAccessesPerVector;
 
-      TensorCoord iteration_coord(c * ThreadMap::Delta::kContiguous + v * AccessType::kElements,
-                                s * ThreadMap::Delta::kStrided);
+      TensorCoord iteration_coord(c * ThreadMap::Delta::kContiguous + v * AccessType::kElements, //BTBT ??? 多少次access+多少个elem, 每次access或传输kAccessesPerVector个vector,每个vector有AccessType::kElements个elem
+                                s * ThreadMap::Delta::kStrided);//BTBT ??? 每个warp的每次迭代在stride维度都有hreadMap::Delta::kStrided个thread
 
       TensorCoord coord = thread_offset_ + iteration_coord;
 
@@ -180,19 +180,19 @@ class PredicatedTileAccessIteratorPredicates {
   void set_predicates(int thread_id, TensorCoord const &threadblock_offset) {
 
     TensorCoord residue_extent;
-    if (kAdvanceRank) {
+    if (kAdvanceRank) {//BTBT bias_relu IteratorA时为1,指向extent_的{pblmSz.K,M}(在predicated_tile_iterator中MK互换,后者作为contiguous前者作为stride)中的M
 
-      typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.strided()) % Shape::kStrided;
-      if (!residue_size) {
+      typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.strided()) % Shape::kStrided;//BTBT 计算pblmSz不能被shpThrdBlk整除时的多余的elem数 //bias_relu A:thrdBlk_ofse.strid=offse.M*shpThrdBlk.M=blkIdx.x*shpThrdBlk.M, 而这里的Shape::dStrided=shpThrdBlk.M
+      if (!residue_size) {//由于grdDim是pblmSz/shpThrdBlk向上取整,所以A情况下的threadblock_offset.strided有可能比extent_[kAdvanceRank](也就是pblmSz.M)大, 而要考虑 -2%3=1
         residue_size = Shape::kStrided;
       }
 
       residue_offset_ = make_Coord(0, residue_size);
       residue_extent = make_Coord(
         extent_.contiguous(), 
-        min(threadblock_offset.strided() + residue_size, extent_.strided())
+        min(threadblock_offset.strided() + residue_size, extent_.strided())//BTBT ???
       );
-    } else {
+    } else {//BTBT bias_relu IteratorB时为0
 
       typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.contiguous()) % Shape::kContiguous;
       if (!residue_size) {

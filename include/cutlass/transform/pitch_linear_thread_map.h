@@ -218,10 +218,10 @@ struct PitchLinearWarpRakedThreadMap {
   using Shape = Shape_;
 
   /// Number of threads total
-  static int const kThreads = Threads;//A和B都是128
+  static int const kThreads = Threads;//BTBT bias_relu  (shpThrdBlk/shpWrp)*32, A和B都是128
 
   /// Extract vector length from Layout
-  static int const kElementsPerAccess = ElementsPerAccess;
+  static int const kElementsPerAccess = ElementsPerAccess;//BTBT 每次transform可取到的elment数
 
   /// Shape of access by each thread
   using ThreadAccessShape = layout::PitchLinearShape<kElementsPerAccess, 1>;
@@ -229,14 +229,14 @@ struct PitchLinearWarpRakedThreadMap {
   /// Internal details made public to facilitate introspection
   struct Detail {
 
-    /// Fixed arrangement of threads within a warp (units of threads).//A:PitchLinearShape<4, 8>,B:<8,4>
-    using WarpThreadArrangement = WarpThreadArrangement_;
+    /// Fixed arrangement of threads within a warp (units of threads).
+    using WarpThreadArrangement = WarpThreadArrangement_;//BTBT bias_relu A硬编码为PitchLinearShape<4, 8>,B则为<8,4> BTBT ??? 这个表示warp内的thread排布?
 
     /// Number of threads per warp
-    static int const kWarpSize = WarpThreadArrangement::kCount;
+    static int const kWarpSize = WarpThreadArrangement::kCount;//BTBT bias_relu 4*8
 
     /// Number of participating warps
-    static int const kWarpCount = kThreads / kWarpSize;//A和B都是128/32=4
+    static int const kWarpCount = kThreads / kWarpSize;//BTBT bias_relu A和B都是128/32=4,指一个shpThrdBlk内有多少个warp
 
     static_assert(
       !(Shape::kContiguous % kElementsPerAccess),
@@ -266,13 +266,13 @@ struct PitchLinearWarpRakedThreadMap {
     // contiguous.
     static int const kWarpsStrided =
         (WarpAccessIterations::kStrided >= kWarpCount
-             ? kWarpCount
+             ? kWarpCount                        //BTBT A:16>=4所以kWarpsStrided=4
              : WarpAccessIterations::kStrided);
 
     static int const kWarpsContiguous =
         (kWarpCount > WarpAccessIterations::kStrided
              ? kWarpCount / kWarpsStrided
-             : 1);
+             : 1);//BTBT A:1
 
     /// Arrangement of warps within a threadblock-scoped tile
     using WarpArrangement = layout::PitchLinearShape<
@@ -282,8 +282,8 @@ struct PitchLinearWarpRakedThreadMap {
 
   ///< Iterations along each dimension (concept: PitchLinearShape)
   using Iterations = layout::PitchLinearShape<
-    Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous, //A:1/1=1; B:2/1=2
-    Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided  //A:16/4=4: B:8/4=2
+    Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous, //A:1/1=1; B:2/1=2 //BTBT ??? 这个表示在contiguous方向每个warp要循环(迭代)多少次?
+    Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided  //A:16/4=4: B:8/4=2 //BTBT ??? 这个表示在stride方向每个warp要循环(迭代)多少次?
   >;
 
   static_assert(Iterations::kCount,
@@ -299,16 +299,16 @@ struct PitchLinearWarpRakedThreadMap {
   CUTLASS_HOST_DEVICE
   static TensorCoord initial_offset(int thread_id) {
 
-    int warp_id = (thread_id / Detail::kWarpSize);
+    int warp_id = (thread_id / Detail::kWarpSize);//BTBT bias_relu thrdId/(4*8)
     int lane_id = (thread_id % Detail::kWarpSize);
 
     //
     // compute warp-level offset
     //
 
-    // This is the shape of the entire area covered by a warp's memory access (in units of vectors)
+    // This is the shape of the entire area covered by a warp's memory access (in units of vectors) //BTBT 每个warp的所有thread中的总迭代次数, 表示warp中每个thread的每次迭代会操作一个vector
     layout::PitchLinearCoord warp_footprint{
-      Detail::WarpThreadArrangement::kContiguous * Iterations::kContiguous,
+      Detail::WarpThreadArrangement::kContiguous * Iterations::kContiguous,//WarpThreadArrangement.c*(((shpThrdBlk.K/kElementsPerAccess)/WarpThreadArrangement.c)/kWarpsContiguous)
       Detail::WarpThreadArrangement::kStrided * Iterations::kStrided
     };
 

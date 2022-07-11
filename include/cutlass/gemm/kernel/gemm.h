@@ -99,7 +99,7 @@ struct Gemm {
       int *workspace = nullptr
     ):
       problem_size(problem_size),
-      grid_tiled_shape(grid_tiled_shape),
+      grid_tiled_shape(grid_tiled_shape),//BTBT bias_relu device/gemm.h.initialize()中
       swizzle_log_tile(ThreadblockSwizzle().get_log_tile(grid_tiled_shape)),//BTBT bias_relu 因GemmIdentityThreadblockSwizzle<>故swizzle_log_tile为0
       params_A(ref_A.layout()),
       ref_A(ref_A),
@@ -111,10 +111,10 @@ struct Gemm {
       ref_D(ref_D),
       output_op(output_op) {
 
-      int total_gemm_k_iterations = (problem_size.k() + Mma::Shape::kK - 1) / Mma::Shape::kK;     //BTBT bias_relu (problem_size.K + ThreadBlock.K - 1) / ThreadBlock.K
-      int gemm_k_iterations = (total_gemm_k_iterations + grid_tiled_shape.k() - 1) / grid_tiled_shape.k(); //BTBT bias_relu (total_gemm_k_iterations + split_k_slices - 1) / split_k_slices
+      int total_gemm_k_iterations = (problem_size.k() + Mma::Shape::kK - 1) / Mma::Shape::kK;     //BTBT bias_relu (problem_size.K + ThreadBlock.K - 1) / ThreadBlock.K 
+      int gemm_k_iterations = (total_gemm_k_iterations + grid_tiled_shape.k() - 1) / grid_tiled_shape.k(); //BTBT bias_relu (total_gemm_k_iterations + split_k_slices - 1) / split_k_slices //BTBT split_k_slices=1时tile不会沿k进行切分,所以每个thrdBlk要沿着K去计算,total_gemm_k_iterations次迭代
       
-      gemm_k_size = gemm_k_iterations * Mma::Shape::kK; //BTBT bias_relu gemm_k_iterations * ThreadBlock.K 也就是  ((problem_size.K + ThreadBlock.K - 1) / ThreadBlock.K) * ThreadBlock.K
+      gemm_k_size = gemm_k_iterations * Mma::Shape::kK; //BTBT bias_relu gemm_k_iterations * ThreadBlock.K 也就是  ((problem_size.K + ThreadBlock.K - 1) / ThreadBlock.K) * ThreadBlock.K //BTBT ??? 注意gemm_k_size中有一些是超出了pblmSz.k的范围,可以不计算的,这些怎么处理
 
     semaphore = workspace;
     }
@@ -191,7 +191,7 @@ struct Gemm {
     ThreadblockSwizzle threadblock_swizzle;
 
     cutlass::gemm::GemmCoord threadblock_tile_offset =
-        threadblock_swizzle.get_tile_offset(params.swizzle_log_tile);//BTBT bias_relu threadblock_tile_offset为(blkIdx.x,blkIdx.y,blkIdx.z), 而gridDim为(prblmSz/ShpThrdBlk.M向上取整,prblmSz/ShpThrdBlk.N向上取整,split_k_slices=1)
+        threadblock_swizzle.get_tile_offset(params.swizzle_log_tile);//BTBT bias_relu threadblock_tile_offset为(blkIdx.x,blkIdx.y,blkIdx.z), 而grdDim为(prblmSz/ShpThrdBlk.M向上取整,prblmSz/ShpThrdBlk.N向上取整,split_k_slices=1)//BTBT ??? threadblock_swizzle.get_tile_offset(.get_log_tile)的目的是优化blk划分,避免过多的no-op CTAs?但没看出来?
     // Early exit if CTA is out of range
     if (params.grid_tiled_shape.m() <= threadblock_tile_offset.m() ||
       params.grid_tiled_shape.n() <= threadblock_tile_offset.n()) {
@@ -201,8 +201,8 @@ struct Gemm {
 
     // Compute initial location in logical coordinates
     cutlass::MatrixCoord tb_offset_A{
-      threadblock_tile_offset.m() * Mma::Shape::kM,           //BTBT bias_relu blkIdx.x * ShpThrdBlk
-      threadblock_tile_offset.k() * params.gemm_k_size,       //BTBT bias_relu 0*gemm_k_sz
+      threadblock_tile_offset.m() * Mma::Shape::kM,           //BTBT bias_relu blkIdx.x * ShpThrdBlk, 指向这个blk所有处理的m轴上的起点
+      threadblock_tile_offset.k() * params.gemm_k_size,       //BTBT bias_relu 因split_k_slice为1,所以grdDim.z为1,所以blkIdx.z为0,故这里为0*gemm_k_sz
     };
 
     cutlass::MatrixCoord tb_offset_B{
@@ -216,10 +216,10 @@ struct Gemm {
       (threadblock_tile_offset.k() + 1) * params.gemm_k_size);
 
     // Compute threadblock-scoped matrix multiply-add
-    int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;//BTBT bias_relu (pblmSz.K - 0 + ShpThrdBlk)/ShpThrdBlk 即(pblmSz.K/ShpThrdBlk)向上取整
+    int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;//BTBT bias_relu (pblmSz.K - 0 + ShpThrdBlk)/ShpThrdBlk 即(pblmSz.K/ShpThrdBlk)向上取整 //BTBT ??? 在split_k_slice=1时,是不是可以直接用params的total_gemm_k_iterations
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;
+    int thread_idx = threadIdx.x;//BTBT 在device/gemm.h.run中设置blkDim时,并没区分xyz,而是都拉平了,所以只有trhdIdx.x,要后续自己计算对应的wrpTil
 
     // Construct iterators to A and B operands
     typename Mma::IteratorA iterator_A(//BTBT bias_relu sm70 在default_mma.h#191中设置Mma为mma_pipelined.h它的IteratorA为PredicatedTileIterator@predicated_tile_iterator.h#608#145
@@ -227,7 +227,7 @@ struct Gemm {
       params.ref_A.data(),
       {params.problem_size.m(), problem_size_k},
       thread_idx,
-      tb_offset_A);
+      tb_offset_A);//BTBT bias_relu 该构造函数其实是调了predicated_tile_iterator#600#145->predicated_tile_access_iterator#315#64#180
 
     typename Mma::IteratorB iterator_B(
       params.params_B,

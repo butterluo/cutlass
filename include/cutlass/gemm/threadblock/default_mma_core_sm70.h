@@ -447,7 +447,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
     layout::PitchLinearShape<Shape::kK, Shape::kM>,//<shpThrdBlk.K, shpThrdBlk.M>
     kThreads,//通过计算shpThrdBlk/shpWrp得到一个tileOfBlk中有多少个tileOfWrp,然后乘wrpSz得到一个tileOfBlk中的thread总数,这里是128
     layout::PitchLinearShape<4, 8>,
-    kAccessSizeInBits / sizeof_bits<ElementA>::value//128/16=8
+    kAccessSizeInBits / sizeof_bits<ElementA>::value//BTBT bias_relu 128/16=8即 transform_line / sizeOf(half)
   >;
 
   /// Shared memory iterator to A operand

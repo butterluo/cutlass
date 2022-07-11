@@ -100,7 +100,7 @@ int RematerializeBlockDimZ() {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Threadblock swizzling function for GEMMs //BTBT bias_relu 
+/// Threadblock swizzling function for GEMMs //BTBT bias_relu sm70
 template <int N = 1>
 struct GemmIdentityThreadblockSwizzle {
 
@@ -178,7 +178,7 @@ struct GemmIdentityThreadblockSwizzle {
   /// Obtains the threadblock offset (in units of threadblock-scoped tiles)
   CUTLASS_DEVICE
   GemmCoord get_tile_offset(int log_tile) const {
-    int block_idx_x = RematerializeBlockIdxX();
+    int block_idx_x = RematerializeBlockIdxX();//RematerializeBlockIdxX is Helper to rematerialize block Idx. Reduces register liveness
     int block_idx_y = RematerializeBlockIdxY();
     int block_idx_z = RematerializeBlockIdxZ();
 

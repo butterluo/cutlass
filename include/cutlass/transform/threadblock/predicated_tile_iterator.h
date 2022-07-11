@@ -156,7 +156,7 @@ class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
   using Shape = Shape_;
   using Element = Element_;
   using Layout = layout::PitchLinear;
-  static int const kAdvanceRank = AdvanceRank;
+  static int const kAdvanceRank = AdvanceRank;//BTBT bias_relu IteratorA时AdvanceRank=1,B时为0
   using ThreadMap = ThreadMap_;
 
   using Index = typename Layout::Index;
@@ -693,7 +693,7 @@ public:
     iterator_(
       params.params_,
       pointer,
-      layout::PitchLinearCoord(extent.column(), extent.row()),
+      layout::PitchLinearCoord(extent.column(), extent.row()),//BTBT ??? 这里和下2行又把传进来的坐标转置了以下,为毛?是pitch_linear的需要么
       thread_id,
       layout::PitchLinearCoord(threadblock_offset.column(), threadblock_offset.row())
     ) { }
