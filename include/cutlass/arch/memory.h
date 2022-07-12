@@ -107,7 +107,7 @@ struct global_load<AccessType,
   CUTLASS_DEVICE
   global_load(AccessType &D, void const *ptr, bool pred_guard) {
   uint4 &data = reinterpret_cast<uint4 &>(D);
-    asm volatile(//BTBT ??? 这种玩法和复杂的李少侠有啥不一样
+    asm volatile(//BTBT ??? 这种玩法和复杂的李侠有啥不一样
         "{\n"
         "  .reg .pred p;\n"              //BTBT Predicated Executioin(ptx7.7/9.3) define predicate var
         "  setp.ne.b32 p, %5, 0;\n"      //BTBT (ptx7.7/9.7.5.2) compare and set predicate var

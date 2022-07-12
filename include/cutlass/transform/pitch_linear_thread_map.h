@@ -242,7 +242,7 @@ struct PitchLinearWarpRakedThreadMap {
       !(Shape::kContiguous % kElementsPerAccess),
       "Shape must be divisible by vector length.");
 
-    /// Compute the 'shape' of the overall tile in units of vectors
+    /// Compute the 'shape' of the overall tile in units of vectors //BTBT 计算一个blkTile中需要多少次access,
     using ShapeInAccesses = layout::PitchLinearShape<
       Shape::kContiguous / kElementsPerAccess,//A:shpThrdBlk.K/8, B:shpThrdBlk.N/8
       Shape::kStrided//A:shpThrdBlk.M, B:shpThrdBlk.K
@@ -257,20 +257,20 @@ struct PitchLinearWarpRakedThreadMap {
       "ShapeInAccesses must be divisible by WarpThreadArrangement.");
 
     // compute number of warp-level accesses total
-    using WarpAccessIterations = layout::PitchLinearShape<
+    using WarpAccessIterations = layout::PitchLinearShape<//BTBT 若以WarpThreadArrangement中thrd的布局,多少次itr才能完成该blkTile所需要的acess
       ShapeInAccesses::kContiguous / WarpThreadArrangement::kContiguous,//A:shpThrdBlk.K/8/4,这里是32/8/4=1; B:shpThrdBlk.N/8/4,这里是128/8/8=2
       ShapeInAccesses::kStrided / WarpThreadArrangement::kStrided//A:shpThrdBlk.M/8,这里是128/8=16; B:shpThrdBlk.K/4,这里是32/4=8
     >;
 
     // Divide it into the number of warps, first partitioning the strided dimension then the
-    // contiguous.
+    // contiguous. //BTBT wrp在thrdBlk中的排布
     static int const kWarpsStrided =
-        (WarpAccessIterations::kStrided >= kWarpCount
-             ? kWarpCount                        //BTBT A:16>=4所以kWarpsStrided=4
+        (WarpAccessIterations::kStrided >= kWarpCount //BTBT ??? 为何要这样判断
+             ? kWarpCount                        //BTBT A:16>=4所以kWarpsStrided=4. wrpCnt作为stride,wrpAcsItr::strid作为itr(因下面的wrpContiguou为1)
              : WarpAccessIterations::kStrided);
 
     static int const kWarpsContiguous =
-        (kWarpCount > WarpAccessIterations::kStrided
+        (kWarpCount > WarpAccessIterations::kStrided //BTBT ??? 为何要这样判断
              ? kWarpCount / kWarpsStrided
              : 1);//BTBT A:1
 
@@ -295,11 +295,11 @@ struct PitchLinearWarpRakedThreadMap {
     Detail::WarpThreadArrangement::kStrided
   >;
 
-  /// Maps thread ID to a coordinate offset within the tensor's logical coordinate space
+  /// Maps thread ID to a coordinate offset within the tensor's logical coordinate space//BTBT bias_relu 把thrdId映射所属wrp的特定lane所指向的初始elem(以thrdBlk所负责的elem为参照)
   CUTLASS_HOST_DEVICE
   static TensorCoord initial_offset(int thread_id) {
 
-    int warp_id = (thread_id / Detail::kWarpSize);//BTBT bias_relu thrdId/(4*8)
+    int warp_id = (thread_id / Detail::kWarpSize);//BTBT bias_relu thrdId/(4*8) 定位到所属warp,以及该thrd是所属wrp的第几个lane
     int lane_id = (thread_id % Detail::kWarpSize);
 
     //

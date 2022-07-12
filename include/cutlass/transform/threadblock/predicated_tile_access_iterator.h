@@ -163,7 +163,7 @@ class PredicatedTileAccessIteratorPredicates {
                  coord.contiguous() < extent.contiguous());
       }
 
-      int pred_idx = v + kAccessesPerVector * (c + ThreadMap::Iterations::kContiguous * s);
+      int pred_idx = v + kAccessesPerVector * (c + ThreadMap::Iterations::kContiguous * s);//BTBT ???
 
       int word_idx = pred_idx / kPredicatesPerWord;
       int residual = pred_idx % kPredicatesPerWord;
@@ -180,9 +180,9 @@ class PredicatedTileAccessIteratorPredicates {
   void set_predicates(int thread_id, TensorCoord const &threadblock_offset) {
 
     TensorCoord residue_extent;
-    if (kAdvanceRank) {//BTBT bias_relu IteratorA时为1,指向extent_的{pblmSz.K,M}(在predicated_tile_iterator中MK互换,后者作为contiguous前者作为stride)中的M
+    if (kAdvanceRank) {//BTBT bias_relu IteratorA时为1,指向extent_的{pblmSz.K,M}(在predicated_tile_iterator中MK互换,前者作为contiguous后者作为stride)中的M
 
-      typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.strided()) % Shape::kStrided;//BTBT 计算pblmSz不能被shpThrdBlk整除时的多余的elem数 //bias_relu A:thrdBlk_ofse.strid=offse.M*shpThrdBlk.M=blkIdx.x*shpThrdBlk.M, 而这里的Shape::dStrided=shpThrdBlk.M
+      typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.strided()) % Shape::kStrided;//BTBT 计算pblmSz不能被shpThrdBlk整除时的多余的elem数 //bias_relu A:thrdBlk_ofse.strid=blkIdx.x*shpThrdBlk.M结果是该thrdBlk所要处理的elem的起点, 而这里的Shape::kStrided=shpThrdBlk.M(因predicated_tile_iterator#632把RowMajor转成PitchLinearShape)
       if (!residue_size) {//由于grdDim是pblmSz/shpThrdBlk向上取整,所以A情况下的threadblock_offset.strided有可能比extent_[kAdvanceRank](也就是pblmSz.M)大, 而要考虑 -2%3=1
         residue_size = Shape::kStrided;
       }
@@ -358,7 +358,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
     CUTLASS_HOST_DEVICE
     Params() { }
 
-    /// Construct the Params object given a pitch-linear tensor's layout
+    /// Construct the Params object given a pitch-linear tensor's layout //BTBT bias_relu 由于A的layout在predicated_tile_iterator中从RowMajor转成PitchLinear,故这里的layout.stride(0)为K
     CUTLASS_HOST_DEVICE
     Params(Layout const &layout) : 
       Base(layout.stride(0),
@@ -427,7 +427,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
           
     // update internal pointers
     Layout layout(params_.stride_);
-    add_pointer_offset(layout(the_predicates.thread_offset_));
+    add_pointer_offset(layout(the_predicates.thread_offset_));//BTBT layout()其实是PitchLinear.operator(),把thread_offset所代表的该thread在所有elem中的坐标拉平为指向该elem的下标
 
   }
 

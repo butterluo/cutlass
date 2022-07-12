@@ -201,7 +201,7 @@ struct Gemm {
 
     // Compute initial location in logical coordinates
     cutlass::MatrixCoord tb_offset_A{
-      threadblock_tile_offset.m() * Mma::Shape::kM,           //BTBT bias_relu blkIdx.x * ShpThrdBlk, 指向这个blk所有处理的m轴上的起点
+      threadblock_tile_offset.m() * Mma::Shape::kM,           //BTBT bias_relu blkIdx.x * ShpThrdBlk, 指向这个blk所有处理的m轴上的elem起点
       threadblock_tile_offset.k() * params.gemm_k_size,       //BTBT bias_relu 因split_k_slice为1,所以grdDim.z为1,所以blkIdx.z为0,故这里为0*gemm_k_sz
     };
 
@@ -219,7 +219,7 @@ struct Gemm {
     int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;//BTBT bias_relu (pblmSz.K - 0 + ShpThrdBlk)/ShpThrdBlk 即(pblmSz.K/ShpThrdBlk)向上取整 //BTBT ??? 在split_k_slice=1时,是不是可以直接用params的total_gemm_k_iterations
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;//BTBT 在device/gemm.h.run中设置blkDim时,并没区分xyz,而是都拉平了,所以只有trhdIdx.x,要后续自己计算对应的wrpTil
+    int thread_idx = threadIdx.x;//BTBT 在device/gemm.h.run中设置blkDim时,并没区分xyz,而是都拉平了,所以只有trhdIdx.x,要后续自己计算对应的wrp以及负责的elem
 
     // Construct iterators to A and B operands
     typename Mma::IteratorA iterator_A(//BTBT bias_relu sm70 在default_mma.h#191中设置Mma为mma_pipelined.h它的IteratorA为PredicatedTileIterator@predicated_tile_iterator.h#608#145

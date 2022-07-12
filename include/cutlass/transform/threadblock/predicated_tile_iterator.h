@@ -308,19 +308,19 @@ class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
   }
 
   CUTLASS_DEVICE
-  void load_with_byte_offset(Fragment &frag, LongIndex byte_offset) {
+  void load_with_byte_offset(Fragment &frag, LongIndex byte_offset) {//BTBT Fragment见#643和mma_pipelined.h
 
     AccessType *frag_ptr = reinterpret_cast<AccessType *>(&frag);//BTBT 相当于Array<half_t, 4*8>(mma_piplined.h#195注释)再加上AlignedArray.Alignment=16
-
+    //BTBT bias_relu 这里是加载数据填充满Fragment,每次迭代填充一部分AccessType. A:AccessType中的AccessSize为8也就是每次迭代填充8bit,直到填充满Fragment的4*8bit
     CUTLASS_PRAGMA_UNROLL
-    for (int s = 0; s < ThreadMap::Iterations::kStrided; ++s) {//BTBT A:kStrided=4; B:2
+    for (int s = 0; s < ThreadMap::Iterations::kStrided; ++s) {//BTBT bias_relu 做wrp内stride方向的迭代,A:kStrided=4; B:2
       CUTLASS_PRAGMA_UNROLL
-      for (int c = 0; c < ThreadMap::Iterations::kContiguous; ++c) {//BTBT A:kContiguous=1; B:2
+      for (int c = 0; c < ThreadMap::Iterations::kContiguous; ++c) {//BTBT bias_relu 做wrp内contiguous方向的迭代, A:kContiguous=1; B:2
 
         CUTLASS_PRAGMA_UNROLL
         for (int v = 0; v < kAccessesPerVector; ++v) {//BTBT kAccessesPerVector=1
 
-          int idx = v + kAccessesPerVector * (c + s * ThreadMap::Iterations::kContiguous);
+          int idx = v + kAccessesPerVector * (c + s * ThreadMap::Iterations::kContiguous);//BTBT 这里的idx作为要填充的Fragment的指针frag_ptr的下标,每次迭代移动AccessType长度???
           
           address_iterator_.set_iteration_index(idx);
           char const *byte_ptr = reinterpret_cast<char const *>(address_iterator_.get()) + byte_offset;
@@ -640,7 +640,7 @@ public:
   using AccessType = typename UnderlyingIterator::AccessType;
 
   /// Fragment object to be loaded or stored
-  using Fragment = cutlass::Array<Element, ThreadMap::Iterations::kCount * ThreadMap::kElementsPerAccess>;//BTBT A:kCount=1*4,kElementsPerAccess=8
+  using Fragment = cutlass::Array<Element, ThreadMap::Iterations::kCount * ThreadMap::kElementsPerAccess>;//BTBT bias_relu A:kCount=1*4,kElementsPerAccess=8
 
   /// Predicate vector stores mask to guard accesses
   using Mask = typename UnderlyingIterator::Mask;
@@ -661,7 +661,7 @@ public:
 
     /// Construct the Params object given a pitch-linear tensor's layout
     CUTLASS_HOST_DEVICE
-    Params(Layout const &layout): params_(layout::PitchLinear(layout.stride(0))) {}
+    Params(Layout const &layout): params_(layout::PitchLinear(layout.stride(0))) {}//BTBT bias_relu A:<m,k>RowMajor=k,所以新建的PitchLinear.stride为k
 
     CUTLASS_HOST_DEVICE
     Params(typename UnderlyingIterator::Params::Base const &base) 
@@ -693,7 +693,7 @@ public:
     iterator_(
       params.params_,
       pointer,
-      layout::PitchLinearCoord(extent.column(), extent.row()),//BTBT ??? 这里和下2行又把传进来的坐标转置了以下,为毛?是pitch_linear的需要么
+      layout::PitchLinearCoord(extent.column(), extent.row()),//BTBT 因为是RowMajor所以column()对应的是PitchLinearCoord的contiguous(第一个param),rwo()对应stride(第二个param),下面也一样
       thread_id,
       layout::PitchLinearCoord(threadblock_offset.column(), threadblock_offset.row())
     ) { }

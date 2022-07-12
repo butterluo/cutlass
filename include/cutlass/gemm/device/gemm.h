@@ -275,7 +275,7 @@ class Gemm {
     //
 
     GemmCoord problem_size;
-    TensorRef<ElementA const, LayoutA> ref_A;
+    TensorRef<ElementA const, LayoutA> ref_A;//BTBT bias_relu 假设这里是A<m,k>,RowMajor=k. 但实际例子上是ColumMajor转置成RowMajor的
     TensorRef<ElementB const, LayoutB> ref_B;
     TensorRef<ElementC const, LayoutC> ref_C;
     TensorRef<ElementC, LayoutC> ref_D;
