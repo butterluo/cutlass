@@ -151,7 +151,7 @@ class PredicatedTileIterator;
 ///            MaskedTileIteratorConcept
 ///
 template <typename Shape_, typename Element_, int AdvanceRank,
-          typename ThreadMap_, int AccessSize, bool Gather>
+          typename ThreadMap_, int AccessSize, bool Gather>//BTBT bias_relu sm70 ???
 class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
                              ThreadMap_, AccessSize, Gather> {
  public:
@@ -618,7 +618,7 @@ template <
   typename ThreadMap_,
   int AccessSize,
   bool Gather
->
+>//BTBT bias_relu sm70 ???
 class PredicatedTileIterator<Shape_, Element_, layout::RowMajor, AdvanceRank, ThreadMap_, AccessSize, Gather> {
 public:
 

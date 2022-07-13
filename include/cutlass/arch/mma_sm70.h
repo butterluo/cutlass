@@ -254,7 +254,7 @@ struct Mma<
   layout::RowMajor,
   half_t,
   layout::RowMajor,
-  OpMultiplyAdd> {
+  OpMultiplyAdd> {//BTBT bias_relu sm70 ???
 
   using Shape = gemm::GemmShape<8, 8, 4>;
 
@@ -556,7 +556,7 @@ struct Mma<
   layout::RowMajor,
   float,
   layout::RowMajor,
-  OpMultiplyAdd> {
+  OpMultiplyAdd> {//BTBT bias_relu sm70 ???
 
   using Shape = gemm::GemmShape<8, 8, 4>;
 
@@ -633,7 +633,7 @@ template <
   typename ElementC,
   typename LayoutC,
   typename Operator
->
+>//BTBT bias_relu sm70 ???
 struct Mma<
   gemm::GemmShape<16, 16, 4>,
   32,

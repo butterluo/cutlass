@@ -494,7 +494,7 @@ template <
   bool GatherB,
   /// Scatter result D by using an index array
   bool ScatterD
->
+>//BTBT bias_relu sm70
 struct DefaultGemm<
   ElementA, LayoutA, kAlignmentA,
   ElementB, LayoutB, kAlignmentB,

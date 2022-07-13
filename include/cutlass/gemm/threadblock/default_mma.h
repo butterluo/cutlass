@@ -208,7 +208,7 @@ template <
     bool GatherA,
     /// Gather operand B by using an index array
     bool GatherB
-    >
+    >//BTBT bias_relu sm70 ???
 struct DefaultMma<ElementA, LayoutA, kAlignmentA, ElementB, LayoutB,
                   kAlignmentB, ElementAccumulator, layout::RowMajor,
                   arch::OpClassTensorOp, ArchTag, ThreadblockShape, WarpShape,
