@@ -24,4 +24,4 @@ reg到smem的regular_tile_iterator_tensor_op_sm70.h#1187没有像少侠那样用
 
 计算坐标变化:
 
-
+advance dimension: 移动的那个rank

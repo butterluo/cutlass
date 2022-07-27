@@ -64,7 +64,7 @@ struct global_load;
 
 // The redundant mov PTX instruction is used to enforce the compiler to
 // initialize data to zero before ld.global
-template <typename AccessType>//BTBT bias_relu sm70 
+template <typename AccessType>
 struct global_load<AccessType,
                    32 
                   > {
@@ -100,7 +100,7 @@ struct global_load<AccessType,
   }
 };
 
-template <typename AccessType>
+template <typename AccessType>//BTBT bias_relu sm70 
 struct global_load<AccessType,
                    16
                   > {
