@@ -257,20 +257,20 @@ struct PitchLinearWarpRakedThreadMap {
       "ShapeInAccesses must be divisible by WarpThreadArrangement.");
 
     // compute number of warp-level accesses total
-    using WarpAccessIterations = layout::PitchLinearShape<//BTBT 若以WarpThreadArrangement中thrd的布局,多少次itr才能完成该blkTile所需要的acess
+    using WarpAccessIterations = layout::PitchLinearShape<//BTBT WarpThreadArrangement是每wrp中thrd个数(contiguous/stride方向),要完成该blkTile所需要的acess数需要多少个wrp
       ShapeInAccesses::kContiguous / WarpThreadArrangement::kContiguous,//A:shpThrdBlk.K/8/4,这里是32/8/4=1; B:shpThrdBlk.N/8/4,这里是128/8/8=2
       ShapeInAccesses::kStrided / WarpThreadArrangement::kStrided//A:shpThrdBlk.M/8,这里是128/8=16; B:shpThrdBlk.K/4,这里是32/4=8
     >;
 
     // Divide it into the number of warps, first partitioning the strided dimension then the
-    // contiguous. //BTBT wrp在thrdBlk中的排布
+    // contiguous. //BTBT 已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,现在共只有kWarpCount个wrp,那么在stride/contiguous方向分别要放多少wrp
     static int const kWarpsStrided =
-        (WarpAccessIterations::kStrided >= kWarpCount //BTBT ??? 为何要这样判断
+        (WarpAccessIterations::kStrided >= kWarpCount
              ? kWarpCount                        //BTBT A:16>=4所以kWarpsStrided=4. wrpCnt作为stride,wrpAcsItr::strid作为itr(因下面的wrpContiguou为1)
              : WarpAccessIterations::kStrided);
 
     static int const kWarpsContiguous =
-        (kWarpCount > WarpAccessIterations::kStrided //BTBT ??? 为何要这样判断
+        (kWarpCount > WarpAccessIterations::kStrided
              ? kWarpCount / kWarpsStrided
              : 1);//BTBT A:1
 
@@ -280,10 +280,10 @@ struct PitchLinearWarpRakedThreadMap {
     >;
   };
 
-  ///< Iterations along each dimension (concept: PitchLinearShape)
+  ///< Iterations along each dimension (concept: PitchLinearShape)//BTBT 已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,在contiguous方向有kWarpsContiguous个wrp,stride方向有kWarpsStrided的情况下,每个wrp需要多少次迭代才能访问完WarpAccessIterations次
   using Iterations = layout::PitchLinearShape<
-    Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous, //A:1/1=1; B:2/1=2 //BTBT ??? 这个表示在contiguous方向每个warp要循环(迭代)多少次?
-    Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided  //A:16/4=4: B:8/4=2 //BTBT ??? 这个表示在stride方向每个warp要循环(迭代)多少次?
+    Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous, //A:1/1=1; B:2/1=2
+    Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided  //A:16/4=4: B:8/4=2
   >;
 
   static_assert(Iterations::kCount,
