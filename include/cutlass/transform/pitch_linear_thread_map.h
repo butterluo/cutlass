@@ -221,7 +221,7 @@ struct PitchLinearWarpRakedThreadMap {
   static int const kThreads = Threads;//BTBT bias_relu  (shpThrdBlk/shpWrp)*32, A和B都是128
 
   /// Extract vector length from Layout
-  static int const kElementsPerAccess = ElementsPerAccess;//BTBT 每次transform可取到的elment数
+  static int const kElementsPerAccess = ElementsPerAccess;//BTBT 每次transform可取到的elment数 bias_relu中是8个half
 
   /// Shape of access by each thread
   using ThreadAccessShape = layout::PitchLinearShape<kElementsPerAccess, 1>;
