@@ -632,7 +632,7 @@ public:
     layout::PitchLinearShape<Shape::kColumn, Shape::kRow>,
     Element,
     layout::PitchLinear,
-    (kAdvanceRank == 0 ? 1 : 0),
+    (kAdvanceRank == 0 ? 1 : 0),//BTBT RowMajor所对应的PitchLinearShape的contiguous rank大小为kColumn, stride rank大小为kRow, 而创建该PredicatedTileIterator时是基于MatrixShape<row,col>,所以当kAdvanceRank=1指的是col rank,对应RowMajor的PitchLinearShape的contiguous rank,因此要在此做转换
     ThreadMap,
     AccessSize
   >;

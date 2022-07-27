@@ -180,7 +180,7 @@ class PredicatedTileAccessIteratorPredicates {
   void set_predicates(int thread_id, TensorCoord const &threadblock_offset) {
 
     TensorCoord residue_extent;
-    if (kAdvanceRank) {//BTBT bias_relu IteratorA时为1,指向extent_的{pblmSz.K,M}(在predicated_tile_iterator中MK互换,前者作为contiguous后者作为stride)中的M
+    if (kAdvanceRank) {//BTBT bias_relu IteratorA时为1,指向extent_的{pblmSz.K,M}(在predicated_tile_iterator中MK互换,前者作为contiguous后者作为stride)中的M.  当kAdvanceRank=1表示指针沿rank 1移动,而PitchLinearCoord[1]会得到stride rank坐标的大小
 
       typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.strided()) % Shape::kStrided;//BTBT 计算pblmSz不能被shpThrdBlk整除时的多余的elem数 //bias_relu A:thrdBlk_ofse.strid=blkIdx.x*shpThrdBlk.M结果是该thrdBlk所要处理的elem的起点, 而这里的Shape::kStrided=shpThrdBlk.M(因predicated_tile_iterator#632把RowMajor转成PitchLinearShape)
       if (!residue_size) {//由于grdDim是pblmSz/shpThrdBlk向上取整,所以A情况下的threadblock_offset.strided有可能比extent_[kAdvanceRank](也就是pblmSz.M)大, 而要考虑 -2%3=1
@@ -192,7 +192,7 @@ class PredicatedTileAccessIteratorPredicates {
         extent_.contiguous(), 
         min(threadblock_offset.strided() + residue_size, extent_.strided())//BTBT ???
       );
-    } else {//BTBT bias_relu IteratorB时为0
+    } else {//BTBT bias_relu IteratorB时为0. 当kAdvanceRank=0表示指针沿rank 0移动,而PitchLinearCoord[0]会得到contiguous rank坐标的大小
 
       typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.contiguous()) % Shape::kContiguous;
       if (!residue_size) {
@@ -208,7 +208,7 @@ class PredicatedTileAccessIteratorPredicates {
     }
 
     // Per-thread offset in logical coordinates of tensor
-    thread_offset_ = threadblock_offset + ThreadMap::initial_offset(thread_id);
+    thread_offset_ = threadblock_offset + ThreadMap::initial_offset(thread_id);//在default_mma_core_sm70.h中配的是PitchLinearWarpRakedThreadMap(pitch_linear_thread_map.h#206)
 
     compute_predicates_(residue_extent, false);
 
