@@ -280,7 +280,7 @@ struct PitchLinearWarpRakedThreadMap {
     >;
   };
 
-  ///< Iterations along each dimension (concept: PitchLinearShape)//BTBT 已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,在contiguous方向有kWarpsContiguous个wrp,stride方向有kWarpsStrided的情况下,每个wrp需要多少次迭代才能访问完WarpAccessIterations次
+  ///< Iterations along each dimension (concept: PitchLinearShape)//BTBT 已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,在contiguous方向有kWarpsContiguous个wrp,stride方向有kWarpsStrided的情况下,每个wrp(也就是每个wrp中的每个thrd)需要多少次迭代才能访问完WarpAccessIterations次
   using Iterations = layout::PitchLinearShape<
     Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous, //A:1/1=1; B:2/1=2
     Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided  //A:16/4=4: B:8/4=2
@@ -308,7 +308,7 @@ struct PitchLinearWarpRakedThreadMap {
 
     // This is the shape of the entire area covered by a warp's memory access (in units of vectors) //BTBT 每个warp的所有thread中的总迭代次数, 表示warp中每个thread的每次迭代会操作一个vector
     layout::PitchLinearCoord warp_footprint{
-      Detail::WarpThreadArrangement::kContiguous * Iterations::kContiguous,//WarpThreadArrangement.c*(((shpThrdBlk.K/kElementsPerAccess)/WarpThreadArrangement.c)/kWarpsContiguous)
+      Detail::WarpThreadArrangement::kContiguous * Iterations::kContiguous,//contiguous方向,有WarpThreadArrangement::kContiguous个thrd,每个thrd要做Iterations::kContiguous次迭代,两个相乘就是每thrd共要访问数据多少次
       Detail::WarpThreadArrangement::kStrided * Iterations::kStrided
     };
 

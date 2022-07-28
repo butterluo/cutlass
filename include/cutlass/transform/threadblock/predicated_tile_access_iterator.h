@@ -85,7 +85,7 @@ class PredicatedTileAccessIteratorPredicates {
   static int const kPredicatesPerByte = 4;
   static int const kPredicatesPerWord = 4 * kPredicatesPerByte;
 
-  static int const kPredicateCount = ThreadMap::Iterations::kCount * kAccessesPerVector;
+  static int const kPredicateCount = ThreadMap::Iterations::kCount * kAccessesPerVector;//BTBT ThreadMap::Iterations指wrp中每thrd要循环多少次取数,而因为数据类型大小的问题每次循环中又有kAccessesPerVector次小循环,因此kPredicateCount就是每thrd循环取数的总次数,也就是掩码的个数
 
   /// Number of 32b words containing predicates
   static int const kPredicateByteCount =
@@ -178,7 +178,7 @@ class PredicatedTileAccessIteratorPredicates {
 
   CUTLASS_HOST_DEVICE
   void set_predicates(int thread_id, TensorCoord const &threadblock_offset) {
-
+    //BTBT 这里调的extent_是传入的pblm_sz
     TensorCoord residue_extent;
     if (kAdvanceRank) {//BTBT bias_relu IteratorA时为1,指向extent_的{pblmSz.K,M}(在predicated_tile_iterator中MK互换,前者作为contiguous后者作为stride)中的M.  当kAdvanceRank=1表示指针沿rank 1移动,而PitchLinearCoord[1]会得到stride rank坐标的大小
 
@@ -192,7 +192,7 @@ class PredicatedTileAccessIteratorPredicates {
         extent_.contiguous(), 
         min(threadblock_offset.strided() + residue_size, extent_.strided())//BTBT ???
       );
-    } else {//BTBT bias_relu IteratorB时为0. 当kAdvanceRank=0表示指针沿rank 0移动,而PitchLinearCoord[0]会得到contiguous rank坐标的大小
+    } else {//BTBT bias_relu A时kAdvanceRank=0表示指针沿rank 0移动,而PitchLinearCoord[0]会得到contiguous rank坐标的大小,对于extent_来说就是col=K,对于threadblock_offset.contiguous则是0
 
       typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.contiguous()) % Shape::kContiguous;
       if (!residue_size) {

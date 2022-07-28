@@ -84,7 +84,7 @@ template <
   typename Shape, typename Element, int AdvanceRank, 
   typename ThreadMap>
 struct MakePredicatedTileAccessIteratorDesc <
-    Shape, Element, layout::PitchLinear, AdvanceRank, ThreadMap> {
+    Shape, Element, layout::PitchLinear, AdvanceRank, ThreadMap> {//BTBT bias_relu sm70
 
   CUTLASS_HOST_DEVICE
   PredicatedTileAccessIteratorDesc operator()() {
