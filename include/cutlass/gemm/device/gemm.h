@@ -440,7 +440,7 @@ public:
 
     ThreadblockSwizzle threadblock_swizzle;
 
-    dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);//BTBT bias_relu 当split_k_slices=1且GemmIdentityThreadblockSwizzle<1>时,和get_tiled_shape结果一样(prblmSz/ShpThrdBlk.M向上取整,prblmSz/ShpThrdBlk.N向上取整,split_k_slices=1)
+    dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);//BTBT bias_relu 当split_k_slices=1且GemmIdentityThreadblockSwizzle<1>时,和get_tiled_shape结果一样(prblmSz/blkTil.M向上取整,prblmSz/blkTil.N向上取整,split_k_slices=1)
     dim3 block(GemmKernel::kThreadCount, 1, 1);//BTBT bias_relu 见kernle/gemm.h的kThreadCount=[32*(blkM/wrpM)*(blkN/wrpN)*(blkK/wrpK)]
 
     cudaError_t result;

@@ -216,7 +216,7 @@ struct Gemm {
       (threadblock_tile_offset.k() + 1) * params.gemm_k_size);
 
     // Compute threadblock-scoped matrix multiply-add
-    int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;//BTBT bias_relu (pblmSz.K - 0 + ShpThrdBlk)/ShpThrdBlk 即(pblmSz.K/ShpThrdBlk)向上取整 //BTBT ??? 在split_k_slice=1时,是不是可以直接用params的total_gemm_k_iterations
+    int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;//BTBT bias_relu (pblmSz.K-0+BlkTil-1)/BlkTil 即pblmSz.K/BlkTil向上取整 //BTBT ??? 在split_k_slice=1时,是不是可以直接用params的total_gemm_k_iterations
 
     // Compute position within threadblock
     int thread_idx = threadIdx.x;//BTBT 在device/gemm.h.run中设置blkDim时,并没区分xyz,而是都拉平了,所以只有trhdIdx.x,要后续自己计算对应的wrp以及负责的elem

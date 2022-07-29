@@ -136,7 +136,7 @@ class PredicatedTileAccessIteratorPredicates {
     }
 
     CUTLASS_PRAGMA_UNROLL
-    for (int access_idx = 0; access_idx < ThreadMap::Iterations::kCount * kAccessesPerVector; ++access_idx) {
+    for (int access_idx = 0; access_idx < ThreadMap::Iterations::kCount * kAccessesPerVector; ++access_idx) {//ThreadMap::Iterations::kCount * kAccessesPerVector 是一个thrd的访存次数
 
       int s = access_idx / (ThreadMap::Iterations::kContiguous * kAccessesPerVector);
       
@@ -201,7 +201,7 @@ class PredicatedTileAccessIteratorPredicates {
 
       residue_offset_ = make_Coord(residue_size, 0);
       
-      residue_extent = make_Coord(
+      residue_extent = make_Coord(//bias_relu A时residue_extent和PblmSz{k,m}一样
         min(extent_.contiguous(), threadblock_offset.contiguous() + residue_size),
         extent_.strided()
       );
@@ -411,7 +411,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
       Params const &params,
       /// Pointer to start of tensor
       Pointer pointer,
-      /// Extent of tensor
+      /// Extent of tensor //BTBT pblmSz
       TensorCoord extent,
       /// ID of each participating thread
       int thread_id,
@@ -426,7 +426,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
     the_predicates.set_predicates(thread_id, threadblock_offset);
           
     // update internal pointers
-    Layout layout(params_.stride_);
+    Layout layout(params_.stride_);//BTBT A:stride_=PblmSz.k
     add_pointer_offset(layout(the_predicates.thread_offset_));//BTBT layout()其实是PitchLinear.operator(),把thread_offset所代表的该thread在所有elem中的坐标拉平为指向该elem的下标
 
   }

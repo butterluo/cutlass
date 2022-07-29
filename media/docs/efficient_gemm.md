@@ -1,4 +1,4 @@
-![ALT](/media/images/gemm-hierarchy-with-epilogue-no-labels.png "Efficient GEMM in CUDA")
+![ALT](../images/gemm-hierarchy-with-epilogue-no-labels.png "Efficient GEMM in CUDA")
 
 [README](/README.md#documentation) > **Efficient GEMM in CUDA**
 
@@ -60,21 +60,21 @@ This is the hierarchical GEMM computation embodied by CUTLASS. Each stage depict
 nested level of tiling which corresponds to a layer of concurrency within the CUDA execution model and to a 
 level within the memory hierarchy, becoming increasingly finer moving left to right.
 
-![ALT](/media/images/gemm-hierarchy-with-epilogue.png "Hierarchical GEMM in CUDA")
+![ALT](../images/gemm-hierarchy-with-epilogue.png "Hierarchical GEMM in CUDA")
 
 
 ### Threadblock-level GEMM
 
-Each threadblock computes its portion of the output GEMM by iteratively loading tiles of input
+Each <u>threadblock computes its portion of the output GEMM by iteratively loading tiles of input
 matrices and computing an accumulated matrix product. At the threadblock level, data is loaded from
-global memory. The blocking strategy in general is key to achieving efficiency. However, there are
-multiple conflicting goals that a programmer aims to achieve to strike a reasonable compromise. A
-larger threadblock means fewer fetches from global memory, thereby ensuring that DRAM bandwidth
-does not become a bottleneck. 
+global memory. The blocking strategy in general is key</u> to achieving efficiency. However, there are
+<u>multiple conflicting goals</u> that a programmer aims to achieve to strike a reasonable compromise. A
+<u>larger threadblock means fewer fetches from global memory, thereby ensuring that DRAM bandwidth
+does not become a bottleneck. </u>
 
-However, large threadblock tiles may not match the dimensions of the problem well. If either the
+<u>However, large threadblock tiles may not match the dimensions of the problem well. If</u> either the
 GEMM _M_ or _N_ dimension is small, some threads within the threadblock may not perform meaningful
-work, as the threadblock may be partially outside the bounds of the problem. If both _M_ and _N_
+work, as the threadblock may be partially outside the bounds of the problem. <u>If </u>both _M_ and _N_
 are small while _K_ is large, this scheme may launch relatively few threadblocks and fail to
 fully utilize all multiprocessors within the GPU. Strategies to optimize performance for this case
 are described in the section [Parallelized Reductions](efficient_gemm.md#parallelized-reductions) 
@@ -88,21 +88,21 @@ the GEMM problem.
 
 ### Warp-level GEMM
 
-The warp-level GEMM maps to the warp-level parallelism within the CUDA execution model. Multiple
-warps within a threadblock fetch data from shared memory into registers and perform computations.
+The <u>warp-level GEMM maps to the warp-level parallelism within the CUDA execution model. Multiple
+warps within a threadblock fetch data from shared memory into registers and perform computations.</u>
 Warp-level GEMMs may be implemented either by TensorCores issuing 
 [mma.sync](https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#warp-level-matrix-instructions-mma) 
 or [wmma](https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#warp-level-matrix-instructions-wmma-mma) 
 instructions or by thread-level matrix computations issued to CUDA cores.
-For maximum performance, access to shared memory should be bank conflict free. To maximize data
-reuse within the warp, a large warp-level GEMM tile should be chosen.
+<u>For maximum performance, access to shared memory should be bank conflict free. To maximize data
+reuse within the warp, a large warp-level GEMM tile</u> should be chosen.
 
 
 ### Thread-level GEMM
 
-At the lowest level of blocking, each thread is responsible for processing a certain number of
+At the lowest level of blocking, <u>each thread is responsible for processing a certain number of
 elements. Threads cannot access each other's registers so we choose an organization that enables
-values held in registers to be reused for multiple math instructions. This results in a 2D tiled
+values held in registers to be reused</u> for multiple math instructions. This results in a 2D tiled
 structure within a thread, in which each thread issues a sequence of independent math instructions
 to the CUDA cores and computes an accumulated outer product.
 
@@ -117,10 +117,10 @@ held in the registers of each thread within the threadblock. The mapping of logi
 in the output tile to each thread is chosen to maximize performance of the matrix multiply
 computation but does not result in efficient, coalesced loads and stores to global memory.
 
-The epilogue is a separate phase in which threads exchange data through shared memory then
-cooperatively access global memory using efficient striped access patterns. It is also
-the phase in which linear scaling and other elementwise operations may be conveniently
-computed using the matrix product results as inputs.
+The <u>epilogue is a separate phase in which threads exchange data through shared memory then
+cooperatively access global memory using efficient striped access patterns</u>. It is also
+<u>the phase in which linear scaling and other elementwise operations may be conveniently
+computed using the matrix product results</u> as inputs.
 
 CUTLASS defines several typical epilogue operations such as linear scaling and clamping,
 but other device-side function call operators may be used to perform custom operations.
@@ -133,15 +133,15 @@ for all corners of the design space, maximizing parallelism and exploiting data 
 
 ### Pipelining
 
-The blocked structure demands a large storage allocation within the registers of each CUDA thread. The
+The <u>blocked structure demands a large storage allocation within the registers of each CUDA thread. The
 accumulator elements typically occupy at least half a thread's total register budget. Consequently, 
 occupancy -- the number of concurrent threads, warps, and threadblocks -- is relatively low compared
-to other classes of GPU workloads. This limits the GPUs ability to hide memory latency and other stalls
+to other classes of GPU workloads. This limits the GPUs ability to hide</u> memory latency and other stalls
 by context switching to other concurrent threads within an SM.
 
-To mitigate the effects of memory latency, *software pipelining* is used to overlap memory accesses
-with other computation within a thread. In CUTLASS, this is achieved by double buffering at the
-following scopes
+<u>To mitigate the effects of memory latency, *software pipelining* is used to overlap memory accesses
+with other computation within a thread</u>. In CUTLASS, this is achieved by <b>double buffering at the
+following scopes</b>
 
 - **threadblock-scoped shared memory tiles:** two tiles are allocated within shared memory; one is used
   load data for the current matrix operation, while the other tile is used to buffer data loaded from
@@ -153,15 +153,15 @@ following scopes
 
 The efficient, pipelined mainloop body used in CUTLASS GEMMs is illustrated as follows.
 
-![ALT](/media/images/software-pipeline.png "Software pipeline in CUTLASS")
+![ALT](../images/software-pipeline.png "Software pipeline in CUTLASS")
 
 ### Threadblock Rasterization
 
-To maximize reuse of data held in the last level cache, CUTLASS defines several functions to
-affect the mapping of threadblocks to logical partitions of the GEMM problem. These map
+<u>To maximize reuse of data held in the last level cache</u>, CUTLASS defines several functions to
+affect the <u>mapping of threadblocks to logical partitions of the GEMM problem. These map
 consecutively launched threadblocks to packed two-dimensional regions of the partitioned GEMM
 problem to increase the probability that these will access the same tiles of global memory at
-approximately the same time.
+approximately the same time</u>.
 
 Several functions are defined in [cutlass/gemm/threadblock_swizzle.h](/include/cutlass/gemm/threadblock/threadblock_swizzle.h).
 

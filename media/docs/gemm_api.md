@@ -1,4 +1,4 @@
-![ALT](/media/images/gemm-hierarchy-with-epilogue-no-labels.png "CUTLASS GEMM API")
+![ALT](../images/gemm-hierarchy-with-epilogue-no-labels.png "CUTLASS GEMM API")
 
 [README](/README.md#documentation) > **CUTLASS GEMM API**
 
@@ -50,16 +50,16 @@ for (int cta_n = 0; cta_n < GemmN; cta_n += CtaTileN) {                     // f
 
 ```
 
-The outer-most loops correspond to CTA-level hardware concurrency and are not explicitly written as loops in the code. These
-are implied by CUDA grid launch semantics.
+The </u>outer-most loops correspond to CTA-level hardware concurrency and are not explicitly written as loops in the code. These
+are implied by CUDA grid</u> launch semantics.
 
-The comment `cutlass::gemm::threadblock::Mma` refers to the threadblock-scoped matrix multiply-accumulate concept. This is
-the computation performed by one threadblock to compute a matrix product in registers. The "GEMM main loop" is listed.
+The <u>comment `cutlass::gemm::threadblock::Mma` refers to the threadblock-scoped matrix multiply-accumulate concept. This is
+the computation performed by one threadblock to compute a matrix product in registers.</u> The "GEMM main loop" is listed.
 
-The comment `cutlass::gemm::warp::Mma` refers to the computation performed by each warp. This is a nested loop executing a
-sequence of accumulated outer products. 
+The <u>comment `cutlass::gemm::warp::Mma` refers to the computation performed by each warp. This is a nested loop executing a
+sequence of accumulated outer products.</u> 
 
-The inner-most operation corresponds directly to hardware support. In this example, the nested structure terminates with
+The <u>inner-most operation corresponds directly to hardware support</u>. In this example, the nested structure terminates with
 warp-synchronous matrix multiply instructions targeting Tensor Cores. 
 Alternatively, GEMMs targeting single-thread instructions may have an additional series of nested loops corresponding to 
 thread-level concurrency.
@@ -69,14 +69,14 @@ thread-level concurrency.
 This loop nest is expressed in CUTLASS via the following components which are specialized for data type, layout, and
 math instruction.
 
-![ALT](/media/images/cutlass-gemm-components.png "CUTLASS GEMM Components")
+![ALT](../images/cutlass-gemm-components.png "CUTLASS GEMM Components")
 
 These components are described in the following sections.
 
 ## Device-wide GEMM API
 
-The device-level GEMM API is intended to streamline instantiation and execution of the standard
-GEMM computation across the GPU. This operator is intended to be used in host-side .cu code and
+The device-level GEMM API is <u>intended to streamline instantiation and execution of the standard
+GEMM computation across the GPU. This operator is intended to be used in host-side</u> .cu code and
 has semantics similar to cuBLAS.
 
 The device-wide GEMM API is embodied by the following operators:
@@ -122,19 +122,19 @@ The device-wide GEMM API is embodied by the following operators:
 
 ## Threadblock-level GEMM API
 
-GEMMs at this scope are expected to efficiently load tiles of data from global memory into internal storage and then compute matrix
-products with warp-level GEMM operators.
+GEMMs at this scope are expected to <u>efficiently load tiles of data from global memory into internal storage and then compute matrix
+products with warp-level GEMM operators</u>.
 
 The threadblock-scoped matrix multiply operation is embodied by 
 [cutlass::gemm::threadblock::MmaPipelined](/include/cutlass/gemm/threadblock/mma_pipelined.h).
 This is a class inspired by [std::transform_reduce()](https://en.cppreference.com/w/cpp/algorithm/transform_reduce) 
-which computes the accumulated matrix product of a range of tiles defined by tile iterators.
+which <u>computes the accumulated matrix product of a range of tiles defined by tile iterators</u>.
 
-![ALT](/media/images/cutlass-threadblock-mma-pipelined.png "cutlass::gemm::threadblock::MmaPipelined")
+![ALT](../images/cutlass-threadblock-mma-pipelined.png "cutlass::gemm::threadblock::MmaPipelined")
 
 In the case of GEMM, the tile iterators are 
 [cutlass::transform::threadblock::PredicatedTileIterator](/include/cutlass/transform/threadblock/predicated_tile_iterator.h)
-to traverse a sequence of tiles in global memory with appropriate predication to avoid out-of-bounds
+to <u>traverse a sequence of tiles in global memory with appropriate predication to avoid out-of-bounds</u>
 memory accesses.
 
 *Concept.* Threadblock-level matrix multiply accumulate operators are function objects satisfying the following concept.
@@ -199,11 +199,11 @@ struct Mma {
 
 ## Warp-level Matrix Multiply API
 
-Warp-level GEMM operators load tiles from shared memory into registers and then compute matrix multiplies using either 
-Tensor Cores or CUDA Cores. The result is accumulated in a register tile. Iterators are defined for each
+Warp-level GEMM operators <u>load tiles from shared memory into registers and then compute matrix multiplies using either 
+Tensor Cores or CUDA Cores. The result is accumulated in a register tile</u>. Iterators are defined for each
 operand `A`, `B`, and `C`.
 
-The warp-level GEMM API is a generalization of CUDA's WMMA API to achieve the following objectives:
+The warp-level GEMM API is a generalization of CUDA's WMMA API to <b>achieve the following objectives</b>:
 
 - native matrix multiply sizes of Tensor Cores
 - permuted shared memory layouts to ensure conflict-free accesses
@@ -212,14 +212,14 @@ The warp-level GEMM API is a generalization of CUDA's WMMA API to achieve the fo
 
 Defining a warp-level matrix multiply in CUTLASS is similar to WMMA as shown below.
 
-![ALT](/media/images/cutlass-warp-level-gemm-api-instantiation.png "CUTLASS vs WMMA API")
+![ALT](../images/cutlass-warp-level-gemm-api-instantiation.png "CUTLASS vs WMMA API")
 
-The usage model is also similar. The following example computes a warp-level GEMM operation,
+The usage model is also similar. The <u>following example computes a warp-level GEMM operation,
 accumulating a series of matrix products in a register-backed array. The input to a warp-level
 GEMM operation in CUTLASS _must_ be data in shared memory loaded by iterators or on 
-register-backed fragments.
+register-backed fragments</u>.
 
-![ALT](/media/images/cutlass-warp-level-gemm-operation.png "CUTLASS warp-level GEMM API")
+![ALT](../images/cutlass-warp-level-gemm-operation.png "CUTLASS warp-level GEMM API")
 
 ```c++
 #include "cutlass/gemm/warp/default_mma_tensor_op.h"
@@ -349,8 +349,8 @@ struct Mma {
 
 
 
-*Tensor Core Operators.* Warp-level matrix multiply operators targeting Tensor Cores
-may be defined with the following template arguments. The `Policy` type specifies implementation-level details which may 
+*Tensor Core Operators.* Warp-level matrix multiply <u>operators targeting Tensor Cores
+may be defined with the following template arguments. The `Policy` type specifies implementation-level details which</u> may 
 be used to affect performance or internal implementation of the warp-level operator.
 
 ```c++
@@ -387,8 +387,8 @@ class MmaTensorOp {}
 
 ```
 
-*SIMT Math Instructions.*  Warp-level matrix multiply operators targeting CUDA Cores
-may be defined with the following template arguments. The `Policy` type specifies implementation-level details which may 
+*SIMT Math Instructions.*  Warp-level matrix multiply <u>operators targeting CUDA Cores
+may be defined with the following template arguments. The `Policy` type specifies implementation-level details which</u> may 
 be used to affect performance or internal implementation of the warp-level operator.
 
 ```c++
@@ -419,7 +419,7 @@ class MmaSimt;
 
 ## Thread-level GEMM API
 
-Thread-level GEMM operations perform matrix multiply-accumulate on data held in registers. These target CUDA Cores exclusively.
+Thread-level GEMM operations <u>perform matrix multiply-accumulate on data held in registers. These target CUDA Cores</u> exclusively.
 
 *Concept.* Thread-level matrix multiply operations are function objects satisfying the following concept.
 ```c++
@@ -506,33 +506,33 @@ struct Mma;
 ## Efficient Epilogue 
 
 CUTLASS GEMM operators perform mma followed by epilogue operation similar 
-to cuBLAS. CUTLASS implements an efficient row-major epilogue. Thus, to achieve 
-column-major GEMM, operands A & B are transposed and swapped.
+to cuBLAS. CUTLASS implements an <u>efficient row-major epilogue</u>. Thus, to achieve 
+<u>column-major GEMM, operands A & B are transposed and swapped.</u>
 
-To enable efficient row-major epilogue for both row-major and column-major output layout, 
+To <u>enable efficient row-major epilogue for both row-major and column-major output layout, 
 CUTLASS' device-level GEMM operators `cutlass::device::Gemm` and `cutlass::device::GemmUniversal` 
-provide two template definitions:
+provide two template definitions:</u>
 - (a) [General definition](/include/cutlass/gemm/device/gemm.h#L217)
 - (b) [Specialized definition for column-major source/output](/include/cutlass/gemm/device/gemm.h#L545)
 
 Efficient row-major epilogue for:
 - (i)  GEMM operator on row-major source/output uses template (a). It runs row-major GEMM and 
 an efficient row-major epilogue.
-- (ii)  GEMM operator on column-major source/output uses template (b). It transposes and swaps 
+- (ii)  GEMM operator on column-major source/output uses template <u>(b). It transposes and swaps 
 operands A and B to enable efficient epilogue. `A x B = C => Transpose(B) x Transpose(A) = Transpose(C)`.
 For column-major source (C) matrix, Transpose(C) is row-major, and efficient epilogue works on 
-row-major.
+row-major.</u>
 
-Note that cuBLAS typically expects a column-major source (C) and output matrix (D). Thus,
+<u>Note that cuBLAS typically expects a column-major source (C) and output matrix (D). Thus,
 CUTLASS library only instantiates and generates GEMM operatos with column-major layout. However, 
 CUTLASS by itself can run both row-major and column-major output layouts for all combinations 
-of input layouts. Thus, CUTLASS supports the following layout combinations for input and output layouts: 
+of input layouts</u>. Thus, CUTLASS supports the following layout combinations for input and output layouts: 
 
 - `{N,T} x {N,T} => {N,T}` - NN, TN, TN, TT GEMM for both row-major and column-major output
 
 ## Instruction-level operations
 
-CUTLASS defines a template-based interface to Tensor Core operations to avoid resorting
+CUTLASS defines a <u>template-based interface to Tensor Core</u> operations to avoid resorting
 to inline PTX.
 
 - [mma_sm70.h](/include/cutlass/arch/mma_sm70.h) - Volta TensorCore operations

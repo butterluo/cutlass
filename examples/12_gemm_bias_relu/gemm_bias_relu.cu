@@ -67,7 +67,7 @@ using MMAOp = cutlass::arch::OpClassTensorOp;
 
 // This code section describes CUDA SM architecture number
 using SmArch = cutlass::arch::Sm75;
-
+//BTBT thrdBlk lvl的并行,在device/gemm.h中对grd,blk的设置
 // This code section describes the tile size a thread block will compute
 using ShapeMMAThreadBlock =
     cutlass::gemm::GemmShape<128, 128, 32>;  // <- threadblock tile M = 128, N = 128, K = 32

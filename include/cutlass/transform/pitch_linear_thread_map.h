@@ -218,7 +218,7 @@ struct PitchLinearWarpRakedThreadMap {
   using Shape = Shape_;
 
   /// Number of threads total
-  static int const kThreads = Threads;//BTBT bias_relu  (shpThrdBlk/shpWrp)*32, A和B都是128
+  static int const kThreads = Threads;//BTBT bias_relu  (BlkTil.m/WrpTil.m*BlkTil.n/WrpTil.n*BlkTil.k/WrpTil.k)*32, A和B都是128
 
   /// Extract vector length from Layout
   static int const kElementsPerAccess = ElementsPerAccess;//BTBT 每次transform可取到的elment数 bias_relu中是8个half
@@ -236,13 +236,13 @@ struct PitchLinearWarpRakedThreadMap {
     static int const kWarpSize = WarpThreadArrangement::kCount;//BTBT bias_relu 4*8
 
     /// Number of participating warps
-    static int const kWarpCount = kThreads / kWarpSize;//BTBT bias_relu A和B都是128/32=4,指一个shpThrdBlk内有多少个warp
+    static int const kWarpCount = kThreads / kWarpSize;//BTBT bias_relu A和B都是128/32=4,kThreads指一个blk内有多少thrd,因此kWarpCount就是一个blk内有多少wrp
 
     static_assert(
       !(Shape::kContiguous % kElementsPerAccess),
       "Shape must be divisible by vector length.");
 
-    /// Compute the 'shape' of the overall tile in units of vectors //BTBT 计算一个blkTile中需要多少次access,
+    /// Compute the 'shape' of the overall tile in units of vectors //BTBT 已知每次访问能获取kElementsPerAccess个数,获取一个blkTile所需要的数要多少次访问
     using ShapeInAccesses = layout::PitchLinearShape<
       Shape::kContiguous / kElementsPerAccess,//A:shpThrdBlk.K/8, B:shpThrdBlk.N/8
       Shape::kStrided//A:shpThrdBlk.M, B:shpThrdBlk.K
