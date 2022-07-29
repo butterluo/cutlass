@@ -145,7 +145,7 @@ class PredicatedTileAccessIteratorPredicates {
       int c = access_residual / kAccessesPerVector;
       int v = access_residual % kAccessesPerVector;
 
-      TensorCoord iteration_coord(c * ThreadMap::Delta::kContiguous + v * AccessType::kElements, //BTBT ??? 多少次access+多少个elem, 每次access或传输kAccessesPerVector个vector,每个vector有AccessType::kElements个elem
+      TensorCoord iteration_coord(c * ThreadMap::Delta::kContiguous + v * AccessType::kElements, //BTBT c次vector级访问,每次vector级访问会凑够
                                 s * ThreadMap::Delta::kStrided);//BTBT ??? 每个warp的每次迭代在stride维度都有hreadMap::Delta::kStrided个thread
 
       TensorCoord coord = thread_offset_ + iteration_coord;

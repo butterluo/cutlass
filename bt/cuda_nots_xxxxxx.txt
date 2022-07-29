@@ -27,11 +27,14 @@ ThrdBlk lvl
 BlkTile lvl
     并行形状在bias_relu中客制化ShapeMMAThreadBlock=GemmShape<128, 128, 32>
     每个blk中循环次数,在kernel/gemm.h#219中计算gemm_k_iterations,即pblmSz.K/BlkTil向上取整
+
+    thrd的每次访存取kElementsPerAccess个元素
+        又由kAccessesPerVector次访存组成,每次取AccessType::kElements个元素
 Wrp lvl
     并行形状在bias_relu中客制化ShapeMMAWarp=GemmShape<64, 64, 32>
 Instr lvl
     并行形状在default_gemm#456中写死为GemmShape<8, 8, 4>
-    
+
 
 
 
