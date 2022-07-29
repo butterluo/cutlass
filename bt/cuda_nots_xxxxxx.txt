@@ -30,6 +30,7 @@ BlkTile lvl
 
     thrd的每次访存取kElementsPerAccess个元素
         又由kAccessesPerVector次访存组成,每次取AccessType::kElements个元素
+        AccessType(AlignedArray)是thrd最小访存取数单位,一个thrd会取kAccessesPerVector次,以凑成Fragment(Array)
 Wrp lvl
     并行形状在bias_relu中客制化ShapeMMAWarp=GemmShape<64, 64, 32>
 Instr lvl
