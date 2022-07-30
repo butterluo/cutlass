@@ -208,7 +208,7 @@ struct PitchLinearTilePolicyStripminedThreadStrided
 /// Policy defining a warp-raked arrangement in which a shape is partitioned into contiguous
 /// elements.
 ///
-/// This ThreadMap is used by tensor core kernels.
+/// This ThreadMap is used by tensor core kernels.//BTBT bias_relu sm70
 template <
   typename Shape_,
   int Threads,

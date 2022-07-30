@@ -151,7 +151,7 @@ struct DefaultGemmConfiguration<
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-
+//BTBT bias_relu sm70
 template <
   typename ElementA, 
   typename ElementB, 

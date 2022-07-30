@@ -714,7 +714,7 @@ template <
   FloatRoundStyle Round = FloatRoundStyle::round_to_nearest,
   typename Transform = cutlass::transform::thread::UnaryTransform::Identity
 >
-struct NumericArrayConverter {
+struct NumericArrayConverter {//BTBT bias_relu sm70
 
   using result_type = Array<T, N>;
   using source_type = Array<S, N>;

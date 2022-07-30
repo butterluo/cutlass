@@ -66,7 +66,7 @@ namespace threadblock {
 ////////////////////////////////////////////////////////////////////////////////
 
 /// PredicatedTileAccessIteratorPredicates
-///
+///BTBT bias_relu sm70
 template <typename Shape_, typename Element_, typename Layout_, int AdvanceRank,
           typename ThreadMap_, typename AccessType_>
 class PredicatedTileAccessIteratorPredicates {
@@ -317,7 +317,7 @@ class PredicatedTileAccessIterator;
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Specialization of PredicatedTileAccessIterator for pitch-linear data.
-///
+///BTBT bias_relu sm70
 template <typename Shape_, typename Element_, int AdvanceRank,
           typename ThreadMap_, typename AccessType_, bool Gather>
 class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
