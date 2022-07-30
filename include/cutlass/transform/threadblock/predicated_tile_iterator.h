@@ -330,7 +330,7 @@ class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
           cutlass::arch::global_load<AccessType,
                                      sizeof(AccessType)
                                     >(
-              frag_ptr[idx], access_ptr, address_iterator_.valid());
+              frag_ptr[idx], access_ptr, address_iterator_.valid());//BTBT ??? 结合PredicatedTileAccessIterator和memory.h的代码,发现最细也只能以AccessType为单位决定是否load数据,但AccessType有可能就包含了多个数据,会导致无法被AccessType::kElements整除的维度无法获取一些元素
 
           ++address_iterator_;
         }

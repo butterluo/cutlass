@@ -1,4 +1,7 @@
 # PyCache files
 __pycache__/
 build/
-.idea
+.idea/
+.vscode/
+.project
+.cproject

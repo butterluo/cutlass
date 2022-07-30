@@ -1139,7 +1139,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::AffineRankN<2>,
       if (kAdvanceRank) {
         pointer_ += params_.inc_advance_ * LongIndex(tile_offset[1] - 1);
         pointer_ += Shape::kContiguous * tile_offset[0];
-      } else {
+      } else {// TensorCoord tile_offset{1,0} if kAdvanceRank=0 else {0,1}
         pointer_ += params_.inc_advance_ * LongIndex(tile_offset[0] - 1);
         pointer_ += Shape::kStrided * tile_offset[1];
       }
