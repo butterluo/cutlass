@@ -734,7 +734,7 @@ public:
 };
 
 /// Template based on element size (in bits) - defined in terms of pitch-linear
-/// memory and KBlock size (in elements).
+/// memory and KBlock size (in elements).//BTBT bias_relu sm70 <-#948
 template <int ElementSize, int KBlock>
 struct VoltaTensorOpMultiplicandCrosswise {
   /// Logical rank of tensor

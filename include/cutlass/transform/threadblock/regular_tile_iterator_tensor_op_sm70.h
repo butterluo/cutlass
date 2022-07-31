@@ -1015,7 +1015,7 @@ public:
 /// Satisfies: ForwardTileIteratorConcept |
 ///            ReadableContiguousTileIteratorConcept |
 ///            WriteableContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70 <-#1351
 template <
   typename Shape_,
   typename Element_,
