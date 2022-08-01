@@ -89,7 +89,7 @@ template <
     typename Enable = bool>
 class MmaBase {
  public:
-  ///< Size of the Gemm problem - concept: gemm::GemmShape<>
+  ///< Size of the Gemm problem - concept: gemm::GemmShape<> //BTBT bias_relu BlkTil<128,128,32>
   using Shape = Shape_;
 
   ///< Policy describing tuning details
@@ -115,7 +115,7 @@ class MmaBase {
   static int const kWarpGemmIterations =
       (WarpGemm::kK / Operator::Policy::MmaShape::kK);
 
-  /// Number of stages
+  /// Number of stages //BTBT bias_relu 在mma_pipelined中设为2
   static int const kStages = Stages;
 
   /// Tensor reference to the A operand
@@ -135,10 +135,10 @@ class MmaBase {
     // Type definitions
     //
 
-    /// Shape of the A matrix operand in shared memory
+    /// Shape of the A matrix operand in shared memory //BTBT Policy::SmemPaddingA 在default_mma_core_sm70#517中为<0,0>
     using ShapeA = MatrixShape<Shape::kM + Policy::SmemPaddingA::kRow,
                                Shape::kK * kStages +
-                                   Policy::SmemPaddingA::kColumn>;
+                                   Policy::SmemPaddingA::kColumn>;//bias_relu sm70 <128, 32*2>
 
     /// Shape of the B matrix operand in shared memory
     using ShapeB =
@@ -150,7 +150,7 @@ class MmaBase {
     // Data members
     //
 
-    /// Buffer for A operand
+    /// Buffer for A operand //BTBT bias_relu sm70 <half,128*64=8192>
     AlignedBuffer<typename Operator::ElementA, ShapeA::kCount> operand_A;
 
     /// Buffer for B operand
@@ -162,7 +162,7 @@ class MmaBase {
     // Methods
     //
 
-    /// Returns a layout object for the A matrix
+    /// Returns a layout object for the A matrix //BTBT RowMajorVoltaTensorOpMultiplicandCrosswise@tensor_op_multiplicand_sm70#948 <128,64>
     CUTLASS_DEVICE
     static typename Operator::LayoutA LayoutA() {
       return Operator::LayoutA::packed({ShapeA::kRow, ShapeA::kColumn});

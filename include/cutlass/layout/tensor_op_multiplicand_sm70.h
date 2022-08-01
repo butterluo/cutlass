@@ -768,14 +768,14 @@ struct VoltaTensorOpMultiplicandCrosswise {
 
   static int const kElementSize = ElementSize;
   static int const kElementsPerAccess = kAccessSize / kElementSize;
-  static int const kKBlock = KBlock;
+  static int const kKBlock = KBlock;//BTBT bias_relu BlkTil.k=32
 
  private:
   //
   // Data members
   //
 
-  /// Stride data member. For GEMM, it equals to KBlock x stage.
+  /// Stride data member. For GEMM, it equals to KBlock x stage. //BTBT bias_relu 32*2=64
   Stride stride_;
  public:
   //
@@ -944,7 +944,7 @@ struct ColumnMajorVoltaTensorOpMultiplicandCrosswise {
 };
 
 /// Template mapping a row-major view of pitch-linear memory to
-/// TensorOpMultiplicandCrosswise //BTBT bias_relu sm70
+/// TensorOpMultiplicandCrosswise //BTBT bias_relu sm70 KBlock=BlkTil.k=32
 template <int ElementSize, int KBlock>
 struct RowMajorVoltaTensorOpMultiplicandCrosswise {
   /// Logical rank of tensor

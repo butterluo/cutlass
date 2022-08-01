@@ -436,11 +436,11 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
   //
   // Shared memory layouts
   //
-
+  //BTBT tensor_op_multiplicand_sm70.h#948
   using SmemLayoutA = layout::RowMajorVoltaTensorOpMultiplicandCrosswise<
       sizeof_bits<ElementA>::value, Shape::kK>;
 
-  // Shared memory layout
+  // Shared memory layout//BTBT tensor_op_multiplicand_sm70.h#636
   using SmemLayoutB = layout::RowMajorVoltaTensorOpMultiplicandBCongruous<
       sizeof_bits<ElementB>::value>;
 
@@ -465,7 +465,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
     IteratorThreadMapA
   >;
 
-  /// Policy of iterator B
+  /// Policy of iterator B //BTBT pitch_linear_thread_map.h
   using IteratorThreadMapB = transform::PitchLinearWarpRakedThreadMap<
     layout::PitchLinearShape<Shape::kN, Shape::kK>,
     kThreads,
@@ -473,7 +473,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
     kAccessSizeInBits / sizeof_bits<ElementB>::value
   >;
 
-  /// Shared memory iterator to B operand
+  /// Shared memory iterator to B operand //BTBT regular_tile_iterator_tensor_op_sm70.h
   using SmemIteratorB = transform::threadblock::RegularTileIterator<
     MatrixShape<Shape::kK, Shape::kN>, 
     ElementB, 
@@ -486,7 +486,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
   // Warp-level matrix multiply operator
   //
 
-  // Define the warp-level tensor op
+  // Define the warp-level tensor op //BTBT warp/mma_tensor_op_policy.h
   using Policy = cutlass::gemm::warp::MmaTensorOpPolicy<
     cutlass::arch::Mma<
       cutlass::gemm::GemmShape<16, 16, 4>,
@@ -501,7 +501,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
     >,
     cutlass::MatrixShape<1, 1>
   >;
-
+  //BTBT warp/mma_tensor_op_sm70.h
   using MmaTensorOp = cutlass::gemm::warp::MmaVoltaTensorOp<
     WarpShape,
     ElementA,
@@ -513,7 +513,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
     Policy
   >;
 
-  /// Policy used to define MmaPipelined 
+  /// Policy used to define MmaPipelined //BTBT threadblock/mma_base.h
   using MmaPolicy = MmaPolicy<
     MmaTensorOp,
     MatrixShape<0, 0>,
