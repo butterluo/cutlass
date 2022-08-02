@@ -208,7 +208,7 @@ struct PitchLinearTilePolicyStripminedThreadStrided
 /// Policy defining a warp-raked arrangement in which a shape is partitioned into contiguous
 /// elements.
 ///
-/// This ThreadMap is used by tensor core kernels.//BTBT bias_relu sm70
+/// This ThreadMap is used by tensor core kernels.//BTBT bias_relu sm70 <-default_mma_core_sm70.h<-default_mma.h<-default_gemm.h
 template <
   typename Shape_,
   int Threads,
@@ -224,10 +224,10 @@ struct PitchLinearWarpRakedThreadMap {
   using Shape = Shape_;
 
   /// Number of threads total
-  static int const kThreads = Threads;
+  static int const kThreads = Threads;//BTBT bias_relu  (BlkTil.m/WrpTil.m*BlkTil.n/WrpTil.n*BlkTil.k/WrpTil.k)*32, A和B都是128
 
   /// Extract vector length from Layout
-  static int const kElementsPerAccess = ElementsPerAccess;
+  static int const kElementsPerAccess = ElementsPerAccess;//BTBT 每次transform可取到的elment数 bias_relu中是8个half
 
   /// Shape of access by each thread
   using ThreadAccessShape = layout::PitchLinearShape<kElementsPerAccess, 1>;
@@ -236,22 +236,22 @@ struct PitchLinearWarpRakedThreadMap {
   struct Detail {
 
     /// Fixed arrangement of threads within a warp (units of threads).
-    using WarpThreadArrangement = WarpThreadArrangement_;
+    using WarpThreadArrangement = WarpThreadArrangement_;//BTBT bias_relu A硬编码为PitchLinearShape<4, 8>,B则为<8,4> BTBT ??? 这个表示warp内的thread排布?
 
     /// Number of threads per warp
-    static int const kWarpSize = WarpThreadArrangement::kCount;
+    static int const kWarpSize = WarpThreadArrangement::kCount;//BTBT bias_relu 4*8=32
 
     /// Number of participating warps
-    static int const kWarpCount = kThreads / kWarpSize;
+    static int const kWarpCount = kThreads / kWarpSize;//BTBT bias_relu A和B都是128/32=4,kThreads指一个blk内有多少thrd,因此kWarpCount就是一个blk内有多少wrp
 
     static_assert(
       !(Shape::kContiguous % kElementsPerAccess),
       "Shape must be divisible by vector length.");
 
-    /// Compute the 'shape' of the overall tile in units of vectors
+    /// Compute the 'shape' of the overall tile in units of vectors //BTBT 已知每次访问能获取kElementsPerAccess个数,获取一个blkTile所需要的数要多少次访问,每次访问为一个vector,每次vector取kElementsPerAccess个数
     using ShapeInAccesses = layout::PitchLinearShape<
-      Shape::kContiguous / kElementsPerAccess,
-      Shape::kStrided
+      Shape::kContiguous / kElementsPerAccess,//A:shpThrdBlk.K/8, B:shpThrdBlk.N/8
+      Shape::kStrided//A:shpThrdBlk.M, B:shpThrdBlk.K
     >;
 
     static_assert(
@@ -263,22 +263,22 @@ struct PitchLinearWarpRakedThreadMap {
       "ShapeInAccesses must be divisible by WarpThreadArrangement.");
 
     // compute number of warp-level accesses total
-    using WarpAccessIterations = layout::PitchLinearShape<
-      ShapeInAccesses::kContiguous / WarpThreadArrangement::kContiguous,
-      ShapeInAccesses::kStrided / WarpThreadArrangement::kStrided
+    using WarpAccessIterations = layout::PitchLinearShape<//BTBT WarpThreadArrangement是每wrp中thrd个数(contiguous/stride方向),要完成该blkTile所需要的acess数需要多少个wrp
+      ShapeInAccesses::kContiguous / WarpThreadArrangement::kContiguous,//A:shpThrdBlk.K/8/4,这里是32/8/4=1; B:shpThrdBlk.N/8/4,这里是128/8/8=2
+      ShapeInAccesses::kStrided / WarpThreadArrangement::kStrided//A:shpThrdBlk.M/8,这里是128/8=16; B:shpThrdBlk.K/4,这里是32/4=8
     >;
 
     // Divide it into the number of warps, first partitioning the strided dimension then the
-    // contiguous.
+    // contiguous. //BTBT 已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,现在共只有kWarpCount个wrp,那么在stride/contiguous方向分别要放多少wrp
     static int const kWarpsStrided =
         (WarpAccessIterations::kStrided >= kWarpCount
-             ? kWarpCount
+             ? kWarpCount                        //BTBT A:16>=4所以kWarpsStrided=4. wrpCnt作为stride,wrpAcsItr::strid作为itr(因下面的wrpContiguou为1)
              : WarpAccessIterations::kStrided);
 
     static int const kWarpsContiguous =
         (kWarpCount > WarpAccessIterations::kStrided
              ? kWarpCount / kWarpsStrided
-             : 1);
+             : 1);//BTBT A:1
 
     /// Arrangement of warps within a threadblock-scoped tile
     using WarpArrangement = layout::PitchLinearShape<
@@ -286,10 +286,10 @@ struct PitchLinearWarpRakedThreadMap {
     >;
   };
 
-  ///< Iterations along each dimension (concept: PitchLinearShape)
+  ///< Iterations along each dimension (concept: PitchLinearShape)//BTBT 已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,在contiguous方向有kWarpsContiguous个wrp,stride方向有kWarpsStrided的情况下,每个wrp(也就是每个wrp中的每个thrd)需要多少次迭代才能访问完WarpAccessIterations次
   using Iterations = layout::PitchLinearShape<
-    Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous,
-    Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided
+    Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous, //A:1/1=1; B:2/1=2
+    Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided  //A:16/4=4: B:8/4=2
   >;
 
   static_assert(Iterations::kCount,
@@ -301,20 +301,20 @@ struct PitchLinearWarpRakedThreadMap {
     Detail::WarpThreadArrangement::kStrided
   >;
 
-  /// Maps thread ID to a coordinate offset within the tensor's logical coordinate space
+  /// Maps thread ID to a coordinate offset within the tensor's logical coordinate space//BTBT bias_relu 把thrdId映射所属wrp的特定lane所指向的初始elem(以thrdBlk所负责的elem为参照)
   CUTLASS_HOST_DEVICE
   static TensorCoord initial_offset(int thread_id) {
 
-    int warp_id = (thread_id / Detail::kWarpSize);
+    int warp_id = (thread_id / Detail::kWarpSize);//BTBT bias_relu thrdId/(4*8) 定位到所属warp,以及该thrd是所属wrp的第几个lane
     int lane_id = (thread_id % Detail::kWarpSize);
 
     //
     // compute warp-level offset
     //
 
-    // This is the shape of the entire area covered by a warp's memory access (in units of vectors)
+    // This is the shape of the entire area covered by a warp's memory access (in units of vectors) //BTBT 所谓的units of vectors一个vector就是kElementsPerAccess中的PerAccess
     layout::PitchLinearCoord warp_footprint{
-      Detail::WarpThreadArrangement::kContiguous * Iterations::kContiguous,
+      Detail::WarpThreadArrangement::kContiguous * Iterations::kContiguous,//contiguous方向,有WarpThreadArrangement::kContiguous个thrd,每个thrd要做Iterations::kContiguous次迭代,两个相乘就是每thrd共要访问数据多少次
       Detail::WarpThreadArrangement::kStrided * Iterations::kStrided
     };
 

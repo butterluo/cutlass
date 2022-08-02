@@ -1478,7 +1478,7 @@ public:
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70 <- 2041
 template <
     /// Size of the matrix to load (concept: PitchLinearShape)
     typename Shape_,
@@ -1542,7 +1542,7 @@ class MmaVoltaTensorOpMultiplicandTileIterator<
   using StrideIndex = typename TensorRef::Layout::Stride::Index;
 
   /// Coordinate for an element in the tensor
-  using TensorCoord = typename TensorRef::TensorCoord;
+  using TensorCoord = typename TensorRef::TensorCoord;//BTBT TensorRef::Layout::TensorCoord=VoltaTensorOpMultiplicandCrosswise::TensorCoord=PitchLinearCoord
 
   /// Internal structure of iterator - made public to enable introspection
   struct Policy {
@@ -2038,7 +2038,7 @@ class MmaVoltaTensorOpMultiplicandTileIterator<
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70
 template <
     /// Size of the matrix to load (concept: MatrixShape)
     typename Shape_,

@@ -1054,11 +1054,11 @@ class RegularTileIterator<
   struct Detail {
 
     ///< Number of pointers
-    static int const kPointerCount = (ThreadMap::Iterations::kStrided > 1 ? 2 : 1);
+    static int const kPointerCount = (ThreadMap::Iterations::kStrided > 1 ? 2 : 1);//BTBT ???
 
     /// Iterations for the kElementsPerAccess of ThreadMap
     static int const kIterarionsPerAccess =
-        ThreadMap::kElementsPerAccess / Layout::kElementsPerAccess;
+        ThreadMap::kElementsPerAccess / Layout::kElementsPerAccess/*VoltaTensorOpMultiplicandCrosswise.kElementsPerAccess=4*/;
 
     /// Contiguous elements per line
     static int const kContiguousElementsPerLine = 4;
@@ -1099,7 +1099,7 @@ class RegularTileIterator<
       : line_size(ref.stride(0) * Detail::kContiguousElementsPerLine / Layout::kElementsPerAccess),
         byte_offset_(0) {
 
-    layout::PitchLinearCoord thread_offset_base =
+    layout::PitchLinearCoord thread_offset_base = // the offset of a thread within a threadblock tile (units of elements)
         ThreadMap::initial_offset(thread_id);
 
     CUTLASS_PRAGMA_UNROLL
@@ -1188,7 +1188,7 @@ class RegularTileIterator<
   CUTLASS_DEVICE
   void load(Fragment &frag) { load_with_pointer_offset(frag, 0); }
 
-  /// Store a fragment to memory
+  /// Store a fragment to memory//BTBT 参考s9593特殊的store smem方式
   CUTLASS_DEVICE
   void store_with_pointer_offset(Fragment const &frag, Index pointer_offset) {
     AccessType const *frag_ptr = reinterpret_cast<AccessType const *>(&frag);

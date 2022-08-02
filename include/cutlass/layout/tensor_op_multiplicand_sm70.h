@@ -767,7 +767,7 @@ struct VoltaTensorOpMultiplicandCrosswise {
   //
 
   static int const kElementSize = ElementSize;
-  static int const kElementsPerAccess = kAccessSize / kElementSize;
+  static int const kElementsPerAccess = kAccessSize / kElementSize;//bias_relu 64/16=4
   static int const kKBlock = KBlock;//BTBT bias_relu BlkTil.k=32
 
  private:
