@@ -60,7 +60,7 @@ struct Gemm {
 
   using Mma = Mma_;
   using Epilogue = Epilogue_;
-  using OutputOp = typename Epilogue::OutputOp;
+  using OutputOp = typename Epilogue::OutputOp;//BTBT bias_relu sm70 Epilogue::OutputOp在gemm_bias_relu中设为LinearCombinationRelu并通过default_gemm和default_epilogue_volta_tensor_op传给epilogue.h
   using ThreadblockSwizzle = ThreadblockSwizzle_;
   static bool const kSplitKSerial = SplitKSerial;
 
@@ -81,7 +81,7 @@ struct Gemm {
     typename Epilogue::OutputTileIterator::TensorRef ref_C;
     typename Epilogue::OutputTileIterator::Params params_D;
     typename Epilogue::OutputTileIterator::TensorRef ref_D;
-    typename OutputOp::Params output_op;
+    typename OutputOp::Params output_op;//BTBT bias_relu LinearCombinationRelu::Params
     int *semaphore;
     int gemm_k_size;
     // For gather+scatter operations
@@ -176,7 +176,7 @@ struct Gemm {
                                    ? 32
                                    : (platform::is_same<typename Epilogue::OutputTileIterator::Layout,
                                                         layout::ColumnMajorInterleaved<64>>::value)
-                                     ? 64
+                                     ? 64~
                                      : Epilogue::OutputTileIterator::kElementsPerAccess;
 
     if (!TensorRef_aligned(ref_A, kAlignmentA)) {
@@ -206,7 +206,7 @@ struct Gemm {
     ThreadblockSwizzle threadblock_swizzle;
 
     cutlass::gemm::GemmCoord threadblock_tile_offset =
-        threadblock_swizzle.get_tile_offset(params.swizzle_log_tile);
+        threadblock_swizzle.get_tile_offset(params.swizzle_log_tile);//BTBT bias_relu threadblock_tile_offset为(blkIdx.x,blkIdx.y,blkIdx.z), 而grdDim为(prblmSz/ShpThrdBlk.M向上取整,prblmSz/ShpThrdBlk.N向上取整,split_k_slices=1)//BTBT ??? threadblock_swizzle.get_tile_offset(.get_log_tile)的目的是优化blk划分,避免过多的no-op CTAs?但没看出来?
 
     // Early exit if CTA is out of range
     if (params.grid_tiled_shape.m() <= threadblock_tile_offset.m() ||
@@ -217,8 +217,8 @@ struct Gemm {
 
     // Compute initial location in logical coordinates
     cutlass::MatrixCoord tb_offset_A{
-      threadblock_tile_offset.m() * Mma::Shape::kM,
-      threadblock_tile_offset.k() * params.gemm_k_size,
+      threadblock_tile_offset.m() * Mma::Shape::kM,           //BTBT bias_relu blkIdx.x * BlkTilM, 指向这个blk所有处理的m轴上的elem起点
+      threadblock_tile_offset.k() * params.gemm_k_size,       //BTBT bias_relu 因split_k_slice为1,所以grdDim.z为1,所以blkIdx.z为0,故这里为0*gemm_k_sz
     };
 
     cutlass::MatrixCoord tb_offset_B{
@@ -227,24 +227,24 @@ struct Gemm {
     };
 
     // Problem size is a function of threadblock index in the K dimension
-    int problem_size_k = min(
+    int problem_size_k = min(//BTBT bias_relu min( problem_size.K, (blkIdx.z + 1)*gemm_k_size ) 因 blkIdx.z=0 故 min( problem_size.K, gemm_k_size )=>problem_size.K
       params.problem_size.k(), 
       (threadblock_tile_offset.k() + 1) * params.gemm_k_size);
 
     // Compute threadblock-scoped matrix multiply-add
-    int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;
+    int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;//BTBT bias_relu (pblmSz.K-0+BlkTil-1)/BlkTil 即pblmSz.K/BlkTil向上取整 //BTBT ??? 在split_k_slice=1时,是不是可以直接用params的total_gemm_k_iterations
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;
+    int thread_idx = threadIdx.x;//BTBT 在device/gemm.h.run中设置blkDim时,并没区分xyz,而是都拉平了,所以只有trhdIdx.x,要后续自己计算对应的wrp以及负责的elem
 
     // Construct iterators to A and B operands
-    typename Mma::IteratorA iterator_A(
+    typename Mma::IteratorA iterator_A(//BTBT bias_relu sm70 在default_mma.h#191中设置Mma为mma_pipelined.h它的IteratorA为PredicatedTileIterator@predicated_tile_iterator.h#608#145
       params.params_A,
       params.ref_A.data(),
       {params.problem_size.m(), problem_size_k},
       thread_idx,
       tb_offset_A,
-      params.gather_A_indices);
+      params.gather_A_indices);//BTBT bias_relu 该构造函数其实是调了predicated_tile_iterator#600#145->predicated_tile_access_iterator#315#64#180
 
     typename Mma::IteratorB iterator_B(
       params.params_B,
@@ -263,10 +263,10 @@ struct Gemm {
     // Main loop
     //
 
-    // Construct thread-scoped matrix multiply
-    Mma mma(shared_storage.main_loop, thread_idx, warp_idx, lane_idx);
+    // Construct thread-scoped matrix multiply //BTBT mma_pipelined.h<default_mma.h#238
+    Mma mma(shared_storage.main_loop, thread_idx, warp_idx, lane_idx);//BTBT shared_storage.main_loop使用的是mma_base.h中SharedStorage的定义
 
-    typename Mma::FragmentC accumulators;
+    typename Mma::FragmentC accumulators; //BTBT bias_relu mma_pipelined.h<-default_mma.h#214<-dfault_mma_core_sm70.h#511#499<-mma_tensor_op_sm70.h#179FragmentC 就是 Array<elemC,WrpTil中元素总数除以32=128>
 
     accumulators.clear();
 
@@ -276,7 +276,7 @@ struct Gemm {
     }
 
     //
-    // Epilogue
+    // Epilogue//BTBT bias_relu LinearCombinationRelu
     //
 
     OutputOp output_op(params.output_op);
@@ -290,7 +290,7 @@ struct Gemm {
 
     //assume identity swizzle
     MatrixCoord threadblock_offset(
-      threadblock_tile_offset.m() * Mma::Shape::kM,
+      threadblock_tile_offset.m() * Mma::Shape::kM,//BTBT bias_relu blkIdx.x * BlkTilM, 指向这个blk所有处理的m轴上的elem起点,下类似
       threadblock_tile_offset.n() * Mma::Shape::kN
     );
 

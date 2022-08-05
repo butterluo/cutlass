@@ -1133,7 +1133,7 @@ public:
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept |
 ///   WriteableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70 IteratorC
 template <
     /// Size of the matrix to load (concept: MatrixShape)
     typename Shape_,

@@ -291,7 +291,7 @@ class Gemm {
     //
 
     GemmCoord problem_size;
-    TensorRef<ElementA const, LayoutA> ref_A;
+    TensorRef<ElementA const, LayoutA> ref_A;//BTBT bias_relu 假设这里是A<m,k>,RowMajor=k. 但实际例子上是ColumMajor转置成RowMajor的
     TensorRef<ElementB const, LayoutB> ref_B;
     TensorRef<ElementC const, LayoutC> ref_C;
     TensorRef<ElementC, LayoutC> ref_D;
@@ -399,8 +399,8 @@ public:
 
     // Determine grid shape
     ThreadblockSwizzle threadblock_swizzle;
-
-    cutlass::gemm::GemmCoord grid_shape = threadblock_swizzle.get_tiled_shape(
+    //BTBT ??? 在计算grid_shape和thrdBlk的offset时需要用到GemmIdentityThreadblockSwizzle.get_log_tile和get_tiled_shape去优化计算,但不知道原理为何?但在bias_relu和gemm例子中时没用到优化的,因为GemmIdentityThreadblockSwizzle.get_log_tile在两个例子中均返回0
+    cutlass::gemm::GemmCoord grid_shape = threadblock_swizzle.get_tiled_shape(//BTBT bias_relu 调GemmIdentityThreadblockSwizzle.get_tiled_shape向上取整算出pblmSz中各维度BlkTil的个数,即一个grid由多少BlkTil组成
       args.problem_size, 
       {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
       args.split_k_slices);
@@ -469,8 +469,8 @@ public:
 
     ThreadblockSwizzle threadblock_swizzle;
 
-    dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);
-    dim3 block(GemmKernel::kThreadCount, 1, 1);
+    dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);//BTBT bias_relu 当split_k_slices=1且GemmIdentityThreadblockSwizzle<1>时,和get_tiled_shape结果一样(prblmSz/blkTil.M向上取整,prblmSz/blkTil.N向上取整,split_k_slices=1)
+    dim3 block(GemmKernel::kThreadCount, 1, 1);//BTBT bias_relu 见kernle/gemm.h的kThreadCount=[32*(blkM/wrpM)*(blkN/wrpN)*(blkK/wrpK)]
 
     cudaError_t result;
 

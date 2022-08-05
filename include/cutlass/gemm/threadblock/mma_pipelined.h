@@ -197,12 +197,12 @@ public:
 
     // Perform accumulation in the 'd' output operand
     accum = src_accum;
+    //BTBT IteratorA:Fragment=Array<half_t, 4*8>//kCount=1*4,kElementsPerAccess=8//predicated_tile_iterator.h#643<pitch_linear_thread_map.h#284
+    FragmentA tb_frag_A;//BTBT A:[shpThrdBlk.K*(128/bitOf(half))/4/1_]=1 * [(shpThrdBlk.M/8) / ((shpThrdBlk/shpWrp).MNK*wrpSz/(4*8))_]=4 ->Array<half_t, 4*8>(kElementsPerAccess=8)
+    FragmentB tb_frag_B;//BTBT B:[shpThrdBlk.N*(128/bitOf(half))/8/1_]=2 * [(shpThrdBlk.K/4) / ((shpThrdBlk/shpWrp).MNK*wrpSz/(8*4))_]=2 ->Array<half_t, 4*8>(kElementsPerAccess=8)
 
-    FragmentA tb_frag_A;
-    FragmentB tb_frag_B;
-
-    tb_frag_A.clear();
-    tb_frag_B.clear();
+    tb_frag_A.clear();//BTBT IteratorA predicated_tile_iterator.h#343#311用到了predicated_tile_access_iterator.h#315计算内存位置,然后用memory.h中的cutlass::arch::global_load的汇编把数据加载进来
+    tb_frag_B.clear();//BTBT iterator_A&B在kernel/gemm.h的operator()()中初始化. 这里是从glb到reg.
 
     // The last kblock is loaded in the prolog
     iterator_A.load(tb_frag_A);
@@ -211,8 +211,8 @@ public:
     ++iterator_A;
     ++iterator_B;
 
-    this->smem_iterator_A_.store(transform_A(tb_frag_A));
-    this->smem_iterator_B_.store(transform_B(tb_frag_B));
+    this->smem_iterator_A_.store(transform_A(tb_frag_A));//SmemIteratorA<-'regular_tile_iterator_tensor_op_sm70.h#1352并使用了tensor_op_multiplicand_sm70.h#943'<-default_mma_core_sm70.h#434#454
+    this->smem_iterator_B_.store(transform_B(tb_frag_B));//BTBT ??? TransformA和B不知道template是调了numeric_conversion.h#666还是#697,如果都是half的话,前者做了多余的类型转换
 
     ++this->smem_iterator_A_;
     ++this->smem_iterator_B_;
@@ -220,11 +220,11 @@ public:
     __syncthreads();
 
     // Pair of fragments used to overlap shared memory loads and math instructions
-    WarpFragmentA warp_frag_A[2];
-    WarpFragmentB warp_frag_B[2];
-
-    this->warp_tile_iterator_A_.set_kgroup_index(0);
-    this->warp_tile_iterator_B_.set_kgroup_index(0);
+    WarpFragmentA warp_frag_A[2];//BTBT =Array<half,32*16/32*2><-mma_tensor_op_tile_iterator_sm70.h#1571#2050<-mma_tensor_op_sm70.h#136<-default_mma_core_sm70.h#499<-default_gemm.h
+    WarpFragmentB warp_frag_B[2];//BTBT =Array<half,32*16/32*2><-mma_tensor_op_tile_iterator_sm70.h#483#905...
+    //BTBT bias_relu sm70 warp_tile_iterator_A_和B都是MmaPolicy.MmaVoltaTensorOp::MmaVoltaTensorOpMultiplicandTileIterator
+    this->warp_tile_iterator_A_.set_kgroup_index(0);//BTBT warp_tile_iterator_A_在父类mma_base.h中初始化,包含了指向smem的指针.来自mma_tensor_op_tile_iterator_sm70.h#1476#2050
+    this->warp_tile_iterator_B_.set_kgroup_index(0);//BTBT warp_tile_iterator_B_在父类mma_base.h中初始化,包含了指向smem的指针.来自mma_tensor_op_tile_iterator_sm70.h#394#905
 
     this->warp_tile_iterator_A_.load(warp_frag_A[0]);
     this->warp_tile_iterator_B_.load(warp_frag_B[0]);
@@ -255,7 +255,7 @@ public:
       //
 
       CUTLASS_PRAGMA_UNROLL
-      for (int warp_mma_k = 0; warp_mma_k < Base::kWarpGemmIterations; ++warp_mma_k) {
+      for (int warp_mma_k = 0; warp_mma_k < Base::kWarpGemmIterations; ++warp_mma_k) {//BTBT kWarpGemmIterations=shpWrp.K/arch::Mma::Sharp.K=32/4=8=wrpTil/InstrTil
 
         // Load warp-level tiles from shared memory, wrapping to k offset if this is the last group
         // as the case may be.
@@ -291,7 +291,7 @@ public:
         this->warp_tile_iterator_A_.set_kgroup_index((warp_mma_k + 1) % Base::kWarpGemmIterations);
         this->warp_tile_iterator_B_.set_kgroup_index((warp_mma_k + 1) % Base::kWarpGemmIterations);
         
-        this->warp_tile_iterator_A_.load(warp_frag_A[(warp_mma_k + 1) % 2]);
+        this->warp_tile_iterator_A_.load(warp_frag_A[(warp_mma_k + 1) % 2]);//BTBT 写入双buff的warp_frag_A另一个区(写区)
         this->warp_tile_iterator_B_.load(warp_frag_B[(warp_mma_k + 1) % 2]);
 
         ++this->warp_tile_iterator_A_;
@@ -309,8 +309,8 @@ public:
           iterator_A.clear_mask(gemm_k_iterations <= 2);
           iterator_B.clear_mask(gemm_k_iterations <= 2);
         }
-
-        warp_mma(accum, warp_frag_A[warp_mma_k % 2],
+        //BTBT mma_tensor_op_sm70.h<default_mma_core_sm70.h#505
+        warp_mma(accum, warp_frag_A[warp_mma_k % 2],//BTBT 读取双buff的warp_frag_A另一个区(读区)
                  warp_frag_B[warp_mma_k % 2], accum);
       }
     }

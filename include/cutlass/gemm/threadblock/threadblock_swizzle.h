@@ -106,7 +106,7 @@ int RematerializeBlockDimZ() {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Threadblock swizzling function for GEMMs
+/// Threadblock swizzling function for GEMMs //BTBT bias_relu sm70
 template <int N = 1>
 struct GemmIdentityThreadblockSwizzle {
 

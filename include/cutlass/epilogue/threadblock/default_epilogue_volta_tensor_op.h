@@ -74,7 +74,7 @@ namespace threadblock {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Defines sensible defaults for epilogues for TensorOps.
+/// Defines sensible defaults for epilogues for TensorOps. //BTBT bias_relu sm70
 template <
   typename Shape_,
   typename WarpMmaTensorOp_,
@@ -142,7 +142,7 @@ struct DefaultEpilogueVoltaTensorOp {
   using Padding = typename WarpTileIterator::Padding;
 
   //
-  // Define the epilogue
+  // Define the epilogue //epilogue.h
   //
   using Epilogue = cutlass::epilogue::threadblock::Epilogue<
     Shape,

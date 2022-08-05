@@ -542,7 +542,7 @@ struct DefaultGemm<
   static const int kPartitionsK = ThreadblockShape::kK / WarpShape::kK;
 
   /// Define the epilogue
-  using Epilogue = typename cutlass::epilogue::threadblock::DefaultEpilogueVoltaTensorOp<
+  using Epilogue = typename cutlass::epilogue::threadblock::DefaultEpilogueVoltaTensorOp<//BTBT bias_relu sm70 default_epilogue_volta_tensor_op#86
     ThreadblockShape,
     typename Mma::Operator,
     kPartitionsK,

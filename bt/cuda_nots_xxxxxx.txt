@@ -11,6 +11,13 @@ gemm_bias_relu.cu#102#201#212->
                 mma_pipelined.h(在default_gemm.h#476初始化)的operator()()->通过'warp_mma'调用
                     mma_tensor_op_sm70.h(在default_mma.h#196#214<-default_mma_core_sm70.h#499#511初始化)的MmaVoltaTensorOp.operator()()->通过'mma('调用
                         mma_sm70.h#522(在default_mma_core_sm70.h#484#485#507初始化)的Mma.operator()()
+    InstrShap貌似被各种复写
+
+Epilogue
+gemm_bias_relu->dvice/gemm->default_gemm#545
+	default_epilogue_volta_tensor_op#86 OutputOp_ set to LinearCombinationRelu
+		epilogue.h中的Epilogue在default_gemm中赋给kernel::Gemm
+
 
 数据流向:
 device_kernel.h中初始化动态smem???具体用了那种数据结构<-

@@ -73,10 +73,10 @@ template <
                                                        ///< but we use 64 or 32 sometimes when there are not enough data to store
   typename ElementAccumulator_ = ElementOutput_,       ///< Accumulator data type
   typename ElementCompute_ = ElementOutput_,           ///< Data type used to compute linear combination
-  ScaleType::Kind Scale = ScaleType::Default,          ///< Control Alpha and Beta scaling
-  FloatRoundStyle Round = FloatRoundStyle::round_to_nearest
+  ScaleType::Kind Scale = ScaleType::Default,          ///< Control Alpha and Beta scaling //scale_type.h
+  FloatRoundStyle Round = FloatRoundStyle::round_to_nearest //BTBT numeric_conversion.h#54
 >
-class LinearCombinationRelu {
+class LinearCombinationRelu {//BTBT bias_relu sm70
 public:
 
   using ElementOutput = ElementOutput_;

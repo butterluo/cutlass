@@ -172,7 +172,7 @@ public:
   /// Storage for B tile
   using FragmentB = typename IteratorB::Fragment;
 
-  /// Iterates over the C operand in memory
+  /// Iterates over the C operand in memory//BTBT mma_tensor_op_tile_iterator_sm70.h#1149
   using IteratorC = MmaVoltaTensorOpAccumulatorTileIterator<
     MatrixShape<Shape::kM, Shape::kN>,
     ElementC,
@@ -182,8 +182,7 @@ public:
   >;
 
   /// Storage for C tile
-  using FragmentC = typename IteratorC::Fragment;
-
+  using FragmentC = typename IteratorC::Fragment;//BTBT Array<half,WrpTilM*WrpTilN/32=128> mma_tensor_op_tile_iterator_sm70.h#1227
 private:
 
   static_assert(
@@ -193,12 +192,12 @@ private:
 
   /// Number of mma operations performed
   using MmaIterations = MatrixShape<
-    InterleavedTileShape::kM / ArchMmaOperator::Shape::kM,
-    InterleavedTileShape::kN / ArchMmaOperator::Shape::kN
+    InterleavedTileShape::kM / ArchMmaOperator::Shape::kM, //BTBT 32/ArchMmaShp.M=2
+    InterleavedTileShape::kN / ArchMmaOperator::Shape::kN  //BTBT 32/ArchMmaShp.N=2
   >;
   using TileIterations = MatrixShape<
-    Shape::kM / InterleavedTileShape::kM,
-    Shape::kN / InterleavedTileShape::kN
+    Shape::kM / InterleavedTileShape::kM, //BTBT WrpTilM/32=2
+    Shape::kN / InterleavedTileShape::kN  //BTBT WrpTilN/32=2
   >;
 
   // Whether matrix B is reordered
@@ -207,7 +206,7 @@ private:
 public:
 
   /// Underlying matrix multiply operator (concept: arch::Mma)
-  ArchMmaOperator mma;
+  ArchMmaOperator mma;//BTBT mma_sm70#637->#257 or #559
 
 public:
 
@@ -222,14 +221,14 @@ public:
   /// Performs a warp-level matrix multiply-accumulate operation
   CUTLASS_DEVICE
   void operator()(
-    FragmentC &D, 
-    FragmentA const &A, 
+    FragmentC &D,       //Array<half,128>
+    FragmentA const &A, //Array<half,8>
     FragmentB const &B, 
     FragmentC const &C)  {
 
-    using MmaOperandA = typename ArchMmaOperator::FragmentA;
+    using MmaOperandA = typename ArchMmaOperator::FragmentA;//mma_sm70#257 Array<half,4>
     using MmaOperandB = typename ArchMmaOperator::FragmentB;
-    using MmaOperandC = typename ArchMmaOperator::FragmentC;
+    using MmaOperandC = typename ArchMmaOperator::FragmentC;//mma_sm70#257 Array<half,8>
 
     D = C;
 
@@ -238,14 +237,14 @@ public:
     MmaOperandC *ptr_D = reinterpret_cast<MmaOperandC *>(&D);
 
     CUTLASS_PRAGMA_UNROLL
-    for (int outer_col = 0; outer_col < TileIterations::kColumn; ++outer_col) {
+    for (int outer_col = 0; outer_col < TileIterations::kColumn; ++outer_col) {//BTBT WrpTilN/32=2
       CUTLASS_PRAGMA_UNROLL
-      for (int inner_col = 0; inner_col < MmaIterations::kColumn; ++inner_col) {
+      for (int inner_col = 0; inner_col < MmaIterations::kColumn; ++inner_col) {//BTBT 32/ArchMmaShp.N=2
         CUTLASS_PRAGMA_UNROLL
-        for (int outer_row = 0; outer_row < TileIterations::kRow; ++outer_row) {
+        for (int outer_row = 0; outer_row < TileIterations::kRow; ++outer_row) {//BTBT WrpTilM/32=2
           CUTLASS_PRAGMA_UNROLL
 
-          for (int inner_row = 0; inner_row < MmaIterations::kRow; ++inner_row) {
+          for (int inner_row = 0; inner_row < MmaIterations::kRow; ++inner_row) {//BTBT 32/ArchMmaShp.M=2
       
             int op_col = inner_col + MmaIterations::kColumn * outer_col;
 
