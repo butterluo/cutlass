@@ -59,7 +59,7 @@ struct DefaultThreadMapVoltaTensorOp;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Defines the optimal thread map for TensorOp accumulator layouts
+/// Defines the optimal thread map for TensorOp accumulator layouts //BTBT bias_relu sm70
 template <
   typename ThreadblockShape_,
   typename WarpShape_,

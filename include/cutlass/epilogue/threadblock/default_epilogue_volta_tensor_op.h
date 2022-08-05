@@ -99,7 +99,7 @@ struct DefaultEpilogueVoltaTensorOp {
   // Thread map
   //
 
-  using OutputTileThreadMap = typename cutlass::epilogue::threadblock::DefaultThreadMapVoltaTensorOp<
+  using OutputTileThreadMap = typename cutlass::epilogue::threadblock::DefaultThreadMapVoltaTensorOp<//..\epilogue\threadblock\default_thread_map_volta_tensor_op.h
     Shape,
     typename WarpMmaTensorOp::Shape,
     kPartitionsK,
@@ -108,20 +108,20 @@ struct DefaultEpilogueVoltaTensorOp {
     ElementAccumulator
   >::Type;
 
-  using OutputTileIterator = cutlass::epilogue::threadblock::PredicatedTileIterator<
+  using OutputTileIterator = cutlass::epilogue::threadblock::PredicatedTileIterator<//..\epilogue\threadblock\predicated_tile_iterator.h
     OutputTileThreadMap,
     ElementOutput,
     ScatterD
   >;
 
-  using AccumulatorFragmentIterator = cutlass::epilogue::warp::FragmentIteratorVoltaTensorOp<
+  using AccumulatorFragmentIterator = cutlass::epilogue::warp::FragmentIteratorVoltaTensorOp<//..epilogue\warp\fragment_iterator_volta_tensor_op#71
     typename WarpMmaTensorOp::Shape,
     gemm::GemmShape<32, 32, 4>,
     ElementAccumulator,
     LayoutC
   >;
 
-  using WarpTileIterator = cutlass::epilogue::warp::TileIteratorVoltaTensorOp<
+  using WarpTileIterator = cutlass::epilogue::warp::TileIteratorVoltaTensorOp<//..epilogue\warp\tile_iterator_volta_tensor_op#67
     typename WarpMmaTensorOp::Shape,
     gemm::GemmShape<32, 32, 4>,
     ElementAccumulator,

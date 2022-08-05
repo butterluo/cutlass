@@ -68,7 +68,7 @@ class FragmentIteratorVoltaTensorOp;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Partial specialization for row-major shared memory
+/// Partial specialization for row-major shared memory //BTBT bias_relu sm70
 template <
   typename WarpShape_         ///< shape of warp-level GEMM (concept: MatrixShape)
 >

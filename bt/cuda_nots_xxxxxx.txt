@@ -15,7 +15,7 @@ gemm_bias_relu.cu#102#201#212->
 
 Epilogue
 gemm_bias_relu->dvice/gemm->default_gemm#545
-	default_epilogue_volta_tensor_op#86 OutputOp_ set to LinearCombinationRelu
+	default_epilogue_volta_tensor_op#86 OutputOp_设为LinearCombinationRelu(linear_combination_relu#79)
 		epilogue.h中的Epilogue在default_gemm中赋给kernel::Gemm
 
 

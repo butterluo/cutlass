@@ -65,7 +65,7 @@ namespace threadblock {
 /// Tile iterator used to load and store output tile from global memory in epilogue.
 ///
 /// Satisfies: ReadableTileIterator | PredicatedTileIterator | ForwardTileIterator
-///
+///BTBT bias_relu sm70
 template <
   typename ThreadMap_,       ///< Thread map (conept: OutputTileThreadMap)
   typename Element_,         ///< Element data type

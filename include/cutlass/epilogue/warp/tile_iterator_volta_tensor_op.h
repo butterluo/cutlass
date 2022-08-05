@@ -60,7 +60,7 @@ struct TileIteratorVoltaTensorOp;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-/// Template for reading and writing tiles of accumulators to shared memory
+/// Template for reading and writing tiles of accumulators to shared memory //BTBT bias_relu sm70
 template <
   typename WarpShape_         ///< shape of warp-level GEMM (concept: MatrixShape)
 >

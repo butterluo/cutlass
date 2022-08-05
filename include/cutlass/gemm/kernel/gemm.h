@@ -99,7 +99,7 @@ struct Gemm {
     CUTLASS_HOST_DEVICE
     Params(
       cutlass::gemm::GemmCoord const & problem_size,
-      cutlass::gemm::GemmCoord const & grid_tiled_shape,
+      cutlass::gemm::GemmCoord const & grid_tiled_shape,//BTBT bias_relu 在device/gemm中被设为{pblmSz/BlkTilM,pblmSz/BlkTilN,1}(不splitK的情况也就是gridDim)
       typename Mma::IteratorA::TensorRef ref_A,
       typename Mma::IteratorB::TensorRef ref_B,
       typename Epilogue::OutputTileIterator::TensorRef ref_C,
@@ -138,7 +138,7 @@ struct Gemm {
   /// Shared memory storage structure
   union SharedStorage {
     typename Mma::SharedStorage main_loop;
-    typename Epilogue::SharedStorage epilogue;
+    typename Epilogue::SharedStorage epilogue;//BTBT bias_relu Epilogue的父类epilogue_base.h#141的SharedStorage
   };
 
   //
@@ -286,7 +286,7 @@ struct Gemm {
     //
 
     threadblock_tile_offset =
-        threadblock_swizzle.get_tile_offset(params.swizzle_log_tile);
+        threadblock_swizzle.get_tile_offset(params.swizzle_log_tile);//BTBT bias_relu 和上几行一样threadblock_tile_offset为(blkIdx.x,blkIdx.y,blkIdx.z)
 
     //assume identity swizzle
     MatrixCoord threadblock_offset(
@@ -294,9 +294,9 @@ struct Gemm {
       threadblock_tile_offset.n() * Mma::Shape::kN
     );
 
-    int block_idx = threadblock_tile_offset.m() + threadblock_tile_offset.n() * params.grid_tiled_shape.m();
+    int block_idx = threadblock_tile_offset.m() + threadblock_tile_offset.n() * params.grid_tiled_shape.m();//拉平后的blkIdx
 
-    // Construct the semaphore.
+    // Construct the semaphore. //BTBT 当要splitK时才用的上
     Semaphore semaphore(params.semaphore + block_idx, thread_idx);
 
     // If performing a reduction via split-K, fetch the initial synchronization
@@ -309,7 +309,7 @@ struct Gemm {
       output_op.set_k_partition(threadblock_tile_offset.k(), params.grid_tiled_shape.k());
     }
 
-    // Tile iterator loading from source tensor.
+    // Tile iterator loading from source tensor.//在default_epilogue_volta_tensor_op#111设为epilogue::threadblock::PredicatedTileIterator,其threadMap为epilogue::threadblock::DefaultThreadMapVoltaTensorOp
     typename Epilogue::OutputTileIterator iterator_C(
       params.params_C,
       params.ref_C.data(),
@@ -329,8 +329,8 @@ struct Gemm {
       params.scatter_D_indices
     );
 
-    Epilogue epilogue(
-      shared_storage.epilogue, 
+    Epilogue epilogue(//BTBT bias_relu sm70 在default_epilogue_volta_tensor_op#147被设为epilogue.h的Epilogue
+      shared_storage.epilogue, //BTBT bias_relu epilogue_base.h#141的SharedStorage
       thread_idx, 
       warp_idx, 
       lane_idx);
