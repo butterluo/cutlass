@@ -195,7 +195,7 @@ public:
     if (!output_op.is_source_needed()) {
       compute_source_not_needed_(output_op, destination_iterator, accumulators);  
     }
-    else {
+    else {//BTBT ??? 是否compute source的意思是是否计算bias?
       compute_source_needed_(output_op, destination_iterator, accumulators, source_iterator);
     }
   }
@@ -403,7 +403,7 @@ private:
       __syncthreads();
 
       acc2smem_source_needed<cutlass::make_index_sequence<OutputTileIterator::kIterations>>::push(
-          iter, accum_fragment_iterator, this->warp_tile_iterator_);
+          iter, accum_fragment_iterator, this->warp_tile_iterator_);//BTBT ??? 当iter超出kIterations范围时将不会执行acc2smem_source_needed::helper(),否则会以Advance==iter的方式执行helper(),但为何要这样做?用模板可变参数这么复杂
 
       __syncthreads();
 

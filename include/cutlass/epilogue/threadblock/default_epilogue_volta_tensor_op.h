@@ -142,9 +142,9 @@ struct DefaultEpilogueVoltaTensorOp {
   using Padding = typename WarpTileIterator::Padding;
 
   //
-  // Define the epilogue //epilogue.h
+  // Define the epilogue 
   //
-  using Epilogue = cutlass::epilogue::threadblock::Epilogue<
+  using Epilogue = cutlass::epilogue::threadblock::Epilogue<//epilogue.h
     Shape,
     WarpMmaTensorOp,
     kPartitionsK,
