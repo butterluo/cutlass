@@ -158,7 +158,7 @@ OutputTileThreadMapDesc make_OutputTileThreadMapDesc() {
 
 //
 // Parameters struct for PredicatedTileIterator
-//
+//BTBT bias_relu sm70
 
 struct PredicatedTileIteratorParams {
 

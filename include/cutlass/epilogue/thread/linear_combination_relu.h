@@ -189,7 +189,7 @@ public:
     FragmentAccumulator const &accumulator, 
     FragmentOutput const &source) const {
 
-    // Convert source to interal compute numeric type
+    // Convert source to interal compute numeric type //BTBT 类型一样,converter可否去掉?
     NumericArrayConverter<ElementCompute, ElementOutput, kCount, Round> source_converter;
     NumericArrayConverter<ElementCompute, ElementAccumulator, kCount, Round> accumulator_converter;
 
@@ -201,7 +201,7 @@ public:
 
     multiplies<FragmentCompute> mul_add_source;
     multiply_add<FragmentCompute> mul_add_accumulator;
-    ReLu<FragmentCompute> relu;
+    ReLu<FragmentCompute> relu;//activation.h#67
 
     if (Scale == ScaleType::NoBetaScaling) {
       intermediate = converted_source;

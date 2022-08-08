@@ -106,7 +106,7 @@ struct DefaultEpilogueVoltaTensorOp {
     ElementOutput,
     kElementsPerAccess,
     ElementAccumulator
-  >::Type;
+  >::Type;//..epilogue/threadblock/output_tile_thread_map.h
 
   using OutputTileIterator = cutlass::epilogue::threadblock::PredicatedTileIterator<//..\epilogue\threadblock\predicated_tile_iterator.h
     OutputTileThreadMap,
@@ -132,7 +132,7 @@ struct DefaultEpilogueVoltaTensorOp {
 
   static_assert(kSharedMemAlignment == 8, "Shared memory alignment must be 8B");
 
-  using SharedLoadIterator = cutlass::epilogue::threadblock::SharedLoadIterator<
+  using SharedLoadIterator = cutlass::epilogue::threadblock::SharedLoadIterator<//..epilogue/threadblock/shared_load_iterator.h
     typename OutputTileThreadMap::CompactedThreadMap,
     ElementAccumulator,
     kSharedMemAlignment

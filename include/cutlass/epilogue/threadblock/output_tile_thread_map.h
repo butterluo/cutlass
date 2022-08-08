@@ -229,13 +229,13 @@ struct RowArrangement<Shape, WarpsRemaining, ElementsPerAccess, ElementSize, tru
   static int const kElementSize = ElementSize;
 
   struct Detail {
-    static int const kShapeRow = Shape::kRow / WarpsRemaining;
-    static int const kShapeWidth = Shape::kColumn / kElementsPerAccess;
+    static int const kShapeRow = Shape::kRow / WarpsRemaining;//4/WarpsRemaining
+    static int const kShapeWidth = Shape::kColumn / kElementsPerAccess;//128/8=16
 
     static int const kTargetMemoryAccessWidth = 
-      kMemoryAccessSize / (kElementsPerAccess * kElementSize / 8);
+      kMemoryAccessSize / (kElementsPerAccess * kElementSize / 8);//256/(8*16/8)=16
 
-    static int const kTargetAccessRows = kWarpSize / kTargetMemoryAccessWidth;
+    static int const kTargetAccessRows = kWarpSize / kTargetMemoryAccessWidth;//2
   };
 
   static int const kAccessWidth = 
@@ -244,18 +244,18 @@ struct RowArrangement<Shape, WarpsRemaining, ElementsPerAccess, ElementSize, tru
       : const_min(
           Detail::kShapeWidth,
         const_min(kWarpSize, kMemoryAccessSize / (kElementsPerAccess * kElementSize / 8))
-        ));
+        ));//16
 
   static int const kAccessRows =
     (Detail::kTargetAccessRows > Detail::kShapeRow ?
       Detail::kShapeRow
-      : const_min(Shape::kRow, kWarpSize / kAccessWidth));
+      : const_min(Shape::kRow, kWarpSize / kAccessWidth));//2
 
   static int const kIterationsRow = Detail::kShapeRow / kAccessRows;
-  static int const kDeltaRow = kAccessRows;
+  static int const kDeltaRow = kAccessRows;//2
 
   static int const kIterationsColumn = Detail::kShapeWidth / kAccessWidth;
-  static int const kDeltaColumn = kAccessWidth * kElementsPerAccess;
+  static int const kDeltaColumn = kAccessWidth * kElementsPerAccess;//16*8=128
 
   static_assert( kAccessWidth * kElementsPerAccess <= Shape::kColumn, "Accessing too many elements per access");
   static_assert( kIterationsColumn > 0, "Iteration Count Column must be > 0" );
@@ -275,7 +275,7 @@ struct RowArrangement<Shape, WarpsRemaining, ElementsPerAccess, ElementSize, tru
 ///   - coalesced memory accesses in units of 128 Byte lines
 ///   - minimal address arithmetic
 ///   - minimal predicate calculations
-///
+///BTBT bias_relu sm70
 template <
   typename Shape_,
   typename Count_,
@@ -285,7 +285,7 @@ template <
 >
 struct OutputTileOptimalThreadMap {
 
-  using Shape = Shape_;
+  using Shape = Shape_;//BTBT ??? shape是同文件中的OutputTileShape,但为何要这么多维的张量去表示?导致initial_offset()很复杂?
   using Count = Count_;
 
   static int const kWarpSize = 32;
@@ -305,12 +305,12 @@ struct OutputTileOptimalThreadMap {
     static int const kIterationsCluster = 
       ((Shape::kCluster > kWarpCount) ?
         Shape::kCluster / kWarpCount
-        : 1);
+        : 1);//2>4?(2/4):1
 
     static int const kDeltaCluster =
       ((Shape::kCluster > kWarpCount) ?
         Shape::kRow * Count::kRow * Shape::kGroup * Count::kGroup * Shape::kCluster / kIterationsCluster
-        : 1);
+        : 1);//2>4?(4*2*4*2*2/1=128):1
 
     static int const kCompactedDeltaCluster =
       ((Shape::kCluster > kWarpCount) ?
@@ -323,18 +323,18 @@ struct OutputTileOptimalThreadMap {
         : kWarpCount / Shape::kCluster);
 
     static int const kWarpsRemainingForGroups =
-      ((Shape::kCluster > kWarpCount) ? 1 : kWarpCount / Shape::kCluster);
+      ((Shape::kCluster > kWarpCount) ? 1 : kWarpCount / Shape::kCluster);//2>4?1:(4/2)
 
     // Groups
     static int const kIterationsGroup =
       ((Shape::kGroup > kWarpsRemainingForGroups) ?
         Shape::kGroup / kWarpsRemainingForGroups
-        : 1);
+        : 1);//4>2?(4/2):1
 
     static int const kDeltaGroup =
       ((Shape::kGroup > kWarpsRemainingForGroups) ?
         Shape::kRow * Count::kRow * Shape::kGroup / kIterationsGroup
-        : 1);
+        : 1);//4>2?(4*2*4/2=16):1
 
     static int const kCompactedDeltaGroup =
       ((Shape::kGroup > kWarpsRemainingForGroups) ?
@@ -344,26 +344,26 @@ struct OutputTileOptimalThreadMap {
     static int const kWarpPartitionsGroup =
       ((Shape::kGroup > kWarpsRemainingForGroups) ?
         1
-        : kWarpsRemainingForGroups / Shape::kGroup);
+        : kWarpsRemainingForGroups / Shape::kGroup);//4>2?1:(2/4)
 
     static int const kWarpsRemainingForRows =
       ((Shape::kGroup > kWarpsRemainingForGroups) ?
         1
-        : kWarpsRemainingForGroups / Shape::kGroup);
+        : kWarpsRemainingForGroups / Shape::kGroup);//4>2?1:2
     
     // Rows
     using RowArrangement = detail::RowArrangement<
       Shape,
-      kWarpsRemainingForRows,
-      kElementsPerAccess,
-      kElementSize,
-      (Shape::kRow > kWarpsRemainingForRows)
+      kWarpsRemainingForRows,//WarpsRemaining=1
+      kElementsPerAccess,//8
+      kElementSize,//16
+      (Shape::kRow > kWarpsRemainingForRows)//is2dTile=(4>1)
     >;
 
     // Warp partitions
     using WarpPartitions = OutputTileShape<
-      RowArrangement::kWarpPartitionsColumn,
-      RowArrangement::kWarpPartitionsRow,
+      RowArrangement::kWarpPartitionsColumn,//1
+      RowArrangement::kWarpPartitionsRow,//1
       kWarpPartitionsGroup,
       kWarpPartitionsCluster,
       1>;
@@ -377,17 +377,17 @@ struct OutputTileOptimalThreadMap {
   //
 
   using Iterations = OutputTileShape<
-    Detail::RowArrangement::kIterationsColumn, 
-    Detail::RowArrangement::kIterationsRow, 
-    Detail::kIterationsGroup, 
-    Detail::kIterationsCluster, 
-    1>;
+    Detail::RowArrangement::kIterationsColumn, //col=1
+    Detail::RowArrangement::kIterationsRow, //row=1
+    Detail::kIterationsGroup, //grp=2
+    Detail::kIterationsCluster, //clu=1
+    1>;//til=1,  kCount=col*row*grp*clu*til=2
 
   using Delta = OutputTileShape<
-    Detail::RowArrangement::kDeltaColumn,
-    Detail::RowArrangement::kDeltaRow,
-    Detail::kDeltaGroup,
-    Detail::kDeltaCluster,
+    Detail::RowArrangement::kDeltaColumn,//128
+    Detail::RowArrangement::kDeltaRow,//2
+    Detail::kDeltaGroup,//16
+    Detail::kDeltaCluster,//1
     1>;
 
   /// Initial offset function

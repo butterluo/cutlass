@@ -77,7 +77,7 @@ struct DefaultThreadMapVoltaTensorOp<
 
   using ThreadblockShape = ThreadblockShape_;
   using WarpShape = WarpShape_;
-  static int const kPartitionsK = PartitionsK;
+  static int const kPartitionsK = PartitionsK;//BTBT bias_relu default_gemm.h BlkTilK/WrpTilK=1
   using ElementOutput = ElementOutput_;
   static int const kElementsPerAccess = ElementsPerAccess;
   using ElementAccumulator = half_t;
@@ -104,7 +104,7 @@ struct DefaultThreadMapVoltaTensorOp<
     >;
 
     /// Number of participating threads
-    static int const kThreads = WarpCount::kCount * kWarpSize;
+    static int const kThreads = WarpCount::kCount * kWarpSize;//BTBT bias_relu BlkTilM/WrpTilM * BlkTilN/WrpTilN * 32 = 2*2*32
 
     using Shape = cutlass::epilogue::threadblock::OutputTileShape<
       ThreadblockShape::kN,   // column
@@ -129,7 +129,7 @@ struct DefaultThreadMapVoltaTensorOp<
   //
   
   /// ThreadMap to be used by epilogue::PredicatedTileIterator satisfying concept OutputTileThreadMap
-  using Type = OutputTileOptimalThreadMap <
+  using Type = OutputTileOptimalThreadMap <//..epilogue/threadblock/output_tile_thread_map.h
     typename Detail::Shape,
     typename Detail::Count,
     Detail::kThreads,

@@ -17,7 +17,7 @@ Epilogue
 gemm_bias_relu->dvice/gemm->default_gemm#545
 	default_epilogue_volta_tensor_op#86 OutputOp_设为LinearCombinationRelu(linear_combination_relu#79)
 		epilogue.h中的Epilogue在default_gemm中赋给kernel::Gemm
-
+		读取bias用的是epilogue\threadblock\predicated_tile_iterator.h,计算thread与元素的映射用的是epilogue\threadblock\default_thread_map_volta_tensor_op.h,但有点复杂???为何用多维张量(col,row,grp,clu,til)
 
 数据流向:
 device_kernel.h中初始化动态smem???具体用了那种数据结构<-

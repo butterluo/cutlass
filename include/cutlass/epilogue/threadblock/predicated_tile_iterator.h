@@ -99,10 +99,10 @@ public:
   /// Fragment object
   using Fragment = Array<
     Element, 
-    ThreadMap::Iterations::kColumn * 
-    ThreadMap::Iterations::kRow * 
-    ThreadMap::Iterations::kGroup * 
-    ThreadMap::Iterations::kCluster * ThreadMap::kElementsPerAccess>;
+    ThreadMap::Iterations::kColumn *   //1 
+    ThreadMap::Iterations::kRow *       //1
+    ThreadMap::Iterations::kGroup *     //2
+    ThreadMap::Iterations::kCluster * ThreadMap::kElementsPerAccess>; // 1*1*2 * 1*8=16
 
   /// Memory access size
   using AccessType = AlignedArray<Element, ThreadMap::kElementsPerAccess>;
@@ -314,7 +314,7 @@ public:
 
             bool guard = row_guard && mask_.predicates[column];
 
-            cutlass::arch::global_load<
+            cutlass::arch::global_load<//BTBT 使用汇编加载数据
               AccessType, 
               sizeof(AccessType)
             >(
