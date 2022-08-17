@@ -112,19 +112,19 @@ struct global_load<AccessType,
                   > {
   CUTLASS_DEVICE
   global_load(AccessType &D, void const *ptr, bool pred_guard) {
-  uint4 &data = reinterpret_cast<uint4 &>(D);
+  uint4 &data = reinterpret_cast<uint4 &>(D);//BTBT uint4是cuda的类型,由4个uint32_t组成,nv的dev论坛上也说了half要转为uint4才能8个组成一个struct去编译成LDG.E.128指令
     asm volatile(
         "{\n"
         "  .reg .pred p;\n"
         "  setp.ne.b32 p, %5, 0;\n"
-        "  mov.b32 %0, %6;\n"
+        "  mov.b32 %0, %6;\n"                         //这里是置零reg
         "  mov.b32 %1, %7;\n"
         "  mov.b32 %2, %8;\n"
         "  mov.b32 %3, %9;\n"
 #if CUTLASS_ENABLE_L2_PREFETCH
         "  @p ld.global.L2::128B.v4.u32 {%0, %1, %2, %3}, [%4];\n"
 #else
-        "  @p ld.global.v4.u32 {%0, %1, %2, %3}, [%4];\n"
+        "  @p ld.global.v4.u32 {%0, %1, %2, %3}, [%4];\n"                         //从glb加载4个uint32_t,刚好128bit,编译成LDG.E.128
 #endif
         "}\n"
         : "=r"(data.x), "=r"(data.y), "=r"(data.z), "=r"(data.w)

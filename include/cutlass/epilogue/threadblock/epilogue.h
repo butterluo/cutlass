@@ -386,8 +386,8 @@ private:
     // Iterate over accumulator tile
     // 
 
-    #pragma unroll(IterationsUnroll ? OutputTileIterator::kIterations : 1)//BTBT 如果操作不包含大量指令的话就unroll,而LinearCombinationRelu并非havey的类,所以这里是unroll的
-    for (int iter = 0; iter < OutputTileIterator::kIterations; ++iter) {
+    #pragma unroll(IterationsUnroll ? OutputTileIterator::kIterations : 1)
+    for (int iter = 0; iter < OutputTileIterator::kIterations; ++iter) {//BTBT 如果操作不包含大量指令的话就unroll,而LinearCombinationRelu并非havey的类,所以这里是unroll的
 
       //
       // Load the source
@@ -416,7 +416,7 @@ private:
       shared_load_iterator_.load(aligned_accum_fragment[0]);//BTBT ??? 从SMEM中拿到accumulator的元素,这里是如何处理SMEM到reg的映射的呢?
 
       // If the number of k-slices is > 1 - perform a reduction amongst the k-slices
-      if (kPartitionsK > 1) {
+      if (kPartitionsK > 1) {//BTBT bias_relu kPartitionsK=1
 
         plus <typename SharedLoadIterator::Fragment> add_fragments;
 

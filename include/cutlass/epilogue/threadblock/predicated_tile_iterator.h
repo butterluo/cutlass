@@ -67,7 +67,7 @@ namespace threadblock {
 /// Satisfies: ReadableTileIterator | PredicatedTileIterator | ForwardTileIterator
 ///BTBT bias_relu sm70
 template <
-  typename ThreadMap_,       ///< Thread map (conept: OutputTileThreadMap)
+  typename ThreadMap_,       ///< Thread map (conept: OutputTileThreadMap)//BTBT default_thread_map_volta_tensor_op 和 output_tile_thread_map
   typename Element_,         ///< Element data type
   bool ScatterD = false,     ///< Scatter D operand or not
   bool UseCUDAStore = false
@@ -75,7 +75,7 @@ template <
 class PredicatedTileIterator {
 public:
   using ThreadMap = ThreadMap_;
-  using Shape = typename ThreadMap::Shape;
+  using Shape = typename ThreadMap::Shape;//BTBT default_thread_map_volta_tensor_op#109和output_tile_thread_map#63
 
   using Element = Element_;
 
@@ -87,9 +87,9 @@ public:
   using LongIndex = typename Layout::LongIndex;
   using TensorCoord = MatrixCoord;
 
-  static int const kElementsPerAccess = ThreadMap::kElementsPerAccess;
-  static int const kThreads = ThreadMap::kThreads;
-  static int const kIterations = ThreadMap::Count::kTile;
+  static int const kElementsPerAccess = ThreadMap::kElementsPerAccess; //128/sizeof_bits<half>
+  static int const kThreads = ThreadMap::kThreads;//一个blk有多少thrd: BlkTilM/WrpTilM * BlkTilN/WrpTilN * 32 = 2*2*32
+  static int const kIterations = ThreadMap::Count::kTile;//BTBT default_thread_map_volta_tensor_op#123
 
   static_assert( ThreadMap::Iterations::kRow > 0,"ThreadMap::Iterations::kRow must be > 0");
   static_assert( ThreadMap::Iterations::kGroup > 0,"ThreadMap::Iterations::kGroup must be > 0");
@@ -113,7 +113,7 @@ public:
 
   /// Uses a non-template class
   struct Params : PredicatedTileIteratorParams {
-    using Base = PredicatedTileIteratorParams;
+    using Base = PredicatedTileIteratorParams;//..\epilogue\threadblock\predicated_tile_iterator_params.h
 
     CUTLASS_HOST_DEVICE
     Params() { }
@@ -121,7 +121,7 @@ public:
     CUTLASS_HOST_DEVICE
     Params(Layout const &layout): 
       PredicatedTileIteratorParams(
-        layout.stride(0) * int(sizeof(AccessType)) / kElementsPerAccess,
+        layout.stride(0) * int(sizeof(AccessType)) / kElementsPerAccess,//C是vector,故为0;
         make_OutputTileThreadMapDesc<ThreadMap>()
       ) 
     { }

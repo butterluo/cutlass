@@ -883,11 +883,11 @@ public:
 /// Satisfies: ForwardTileIteratorConcept |
 ///            ReadableContiguousTileIteratorConcept |
 ///            WriteableContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70 SmemIteratorB@default_mma_core_sm70
 template <
-  typename Shape_,
+  typename Shape_,  //B:Matrix<BlkTil.K,N>
   typename Element_,
-  int AdvanceRank,
+  int AdvanceRank,  //B:0
   typename ThreadMap_,
   int Alignment
 >
@@ -1017,16 +1017,16 @@ public:
 ///            WriteableContiguousTileIteratorConcept
 ///BTBT bias_relu sm70 <-#1351
 template <
-  typename Shape_,
+  typename Shape_,//A:Pitch<BlkTil.K,M>
   typename Element_,
-  int AdvanceRank,
+  int AdvanceRank,//A:0变1
   typename ThreadMap_,
   int Alignment
 >
 class RegularTileIterator<
     Shape_, Element_,
     layout::VoltaTensorOpMultiplicandCrosswise<sizeof_bits<Element_>::value,
-                                               Shape_::kContiguous>,
+                                               Shape_::kContiguous>,//BlkTil.K
     AdvanceRank, ThreadMap_, Alignment> {
 
  public:
@@ -1096,7 +1096,7 @@ class RegularTileIterator<
   RegularTileIterator(TensorRef ref,  ///< Pointer to start of tensor
                       int thread_id   ///< ID of each participating thread
                       )
-      : line_size(ref.stride(0) * Detail::kContiguousElementsPerLine / Layout::kElementsPerAccess),
+      : line_size(ref.stride(0) * Detail::kContiguousElementsPerLine / Layout::kElementsPerAccess),//BTBT ??? line_size=BlkTilM*4/4=128
         byte_offset_(0) {
 
     layout::PitchLinearCoord thread_offset_base = // the offset of a thread within a threadblock tile (units of elements)
@@ -1109,11 +1109,11 @@ class RegularTileIterator<
       layout::PitchLinearCoord thread_offset_in_threadblock_tile =
           thread_offset_base +
           layout::PitchLinearCoord{
-              0, ThreadMap::Detail::WarpThreadArrangement::kStrided * i};
+              0, ThreadMap::Detail::WarpThreadArrangement::kStrided * i};//A的WarpThreadArrangement为<4,8>
 
       // initialize pointer
       pointer_[i] = reinterpret_cast<AccessType *>(
-          ref.data() + ref.offset(thread_offset_in_threadblock_tile));
+          ref.data() + ref.offset(thread_offset_in_threadblock_tile));//A:ref.offset最终调VoltaTensorOpMultiplicandCrosswise.op()
     }
   }
 
@@ -1347,11 +1347,11 @@ class RegularTileIterator<Shape_, Element_,
 /// Satisfies: ForwardTileIteratorConcept |
 ///            ReadableContiguousTileIteratorConcept |
 ///            WriteableContiguousTileIteratorConcept
-///BTBT bias_relu sm70
+///BTBT bias_relu sm70 SmemIteratorA@default_mma_core_sm70
 template <
-  typename Shape_,
+  typename Shape_, //BTBT A:Matrix<BlkTilM,K>
   typename Element_,
-  int AdvanceRank,
+  int AdvanceRank,//BTBT A:0
   typename ThreadMap_,  
   int Alignment
 >

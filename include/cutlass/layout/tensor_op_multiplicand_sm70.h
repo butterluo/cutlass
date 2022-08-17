@@ -398,7 +398,7 @@ public:
 
 
 /// Template based on element size (in bits) - defined in terms of pitch-linear memory.
-// template <int ElementSize, Operand Operand>
+// template <int ElementSize, Operand Operand> //BTBT sm70 <- #636
 template <int ElementSize>
 struct VoltaTensorOpMultiplicandBCongruous {
   /// Logical rank of tensor
@@ -631,7 +631,7 @@ public:
   }
 };
 
-/// Template mapping a row-major view of pitch-linear memory to VoltaTensorOpMultiplicandCongruous
+/// Template mapping a row-major view of pitch-linear memory to VoltaTensorOpMultiplicandCongruous //BTBT bias_relu sm70 在default_mma_core_sm70中作为SmemLayoutB
 template <int ElementSize>
 struct RowMajorVoltaTensorOpMultiplicandBCongruous {
 
@@ -768,14 +768,14 @@ struct VoltaTensorOpMultiplicandCrosswise {
 
   static int const kElementSize = ElementSize;
   static int const kElementsPerAccess = kAccessSize / kElementSize;//bias_relu 64/16=4
-  static int const kKBlock = KBlock;//BTBT bias_relu BlkTil.k=32
+  static int const kKBlock = KBlock;//BTBT bias_relu A:BlkTil.k=32
 
  private:
   //
   // Data members
   //
 
-  /// Stride data member. For GEMM, it equals to KBlock x stage. //BTBT bias_relu 32*2=64
+  /// Stride data member. For GEMM, it equals to KBlock x stage. //BTBT bias_relu //BTBT ???本应32*2=64,但mma_pipeline的SharedStorage.LayoutA()中传进来的却是BlkTil.M=128
   Stride stride_;
  public:
   //
@@ -944,8 +944,8 @@ struct ColumnMajorVoltaTensorOpMultiplicandCrosswise {
 };
 
 /// Template mapping a row-major view of pitch-linear memory to
-/// TensorOpMultiplicandCrosswise //BTBT bias_relu sm70 KBlock=BlkTil.k=32
-template <int ElementSize, int KBlock>
+/// TensorOpMultiplicandCrosswise //BTBT bias_relu sm70 KBlock=BlkTil.k=32 在default_mma_core_sm70中作为SmemLayoutA
+template <int ElementSize, int KBlock>//ElementSize is sizeof_bits
 struct RowMajorVoltaTensorOpMultiplicandCrosswise {
   /// Logical rank of tensor
   static int const kRank = 2;

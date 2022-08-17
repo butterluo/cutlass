@@ -436,11 +436,11 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
   //
   // Shared memory layouts
   //
-  //BTBT tensor_op_multiplicand_sm70.h#948
+  //BTBT tensor_op_multiplicand_sm70.h#948>738 // This layout is optimized for 64b accesses
   using SmemLayoutA = layout::RowMajorVoltaTensorOpMultiplicandCrosswise<
       sizeof_bits<ElementA>::value, Shape::kK>;
 
-  // Shared memory layout//BTBT tensor_op_multiplicand_sm70.h#636
+  // Shared memory layout//BTBT tensor_op_multiplicand_sm70.h#636>403 // This layout is optimized for 128b accesses
   using SmemLayoutB = layout::RowMajorVoltaTensorOpMultiplicandBCongruous<
       sizeof_bits<ElementB>::value>;
 

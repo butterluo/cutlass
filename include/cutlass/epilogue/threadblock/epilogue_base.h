@@ -150,7 +150,7 @@ public:
     /// Tensor reference to shared memory allocation
     using TensorRef = typename WarpTileIterator::TensorRef;
 
-    /// Layout of shared memory allocation
+    /// Layout of shared memory allocation //BTBT RowMajor
     using Layout = typename WarpTileIterator::Layout;
     
     /// Logical shape of the shared memory tile written to by all warps.

@@ -88,7 +88,7 @@ struct DefaultThreadMapVoltaTensorOp<
 
   struct Detail {
 
-    static int const kTensorOpRows = 16;
+    static int const kTensorOpRows = 16;//BTBT ???
     static int const kWarpSize = 32;
     static int const kInterleavedTilesM = WarpShape::kM / 32;
 

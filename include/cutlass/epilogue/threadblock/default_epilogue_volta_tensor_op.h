@@ -77,10 +77,10 @@ namespace threadblock {
 /// Defines sensible defaults for epilogues for TensorOps. //BTBT bias_relu sm70
 template <
   typename Shape_,
-  typename WarpMmaTensorOp_,
-  int PartitionsK,
-  typename OutputOp_,
-  int ElementsPerAccess,
+  typename WarpMmaTensorOp_,//gemm/wawrp/mma_tensor_op_sm70, epilogue其实用的是它的shape(即WrpShp,WrpTil)
+  int PartitionsK,//=BlkTilK/WrpTilK
+  typename OutputOp_,//LinearCombinationRelu,LinearCombination之类的
+  int ElementsPerAccess,//OutputOp_::kCount=LinearCombinationRelu::kCount=128/sizeof_bits<half>
   bool ScatterD = false
 >
 struct DefaultEpilogueVoltaTensorOp {
@@ -144,7 +144,7 @@ struct DefaultEpilogueVoltaTensorOp {
   //
   // Define the epilogue 
   //
-  using Epilogue = cutlass::epilogue::threadblock::Epilogue<//epilogue.h
+  using Epilogue = cutlass::epilogue::threadblock::Epilogue<//epilogue.h, epilogue_base.h
     Shape,
     WarpMmaTensorOp,
     kPartitionsK,

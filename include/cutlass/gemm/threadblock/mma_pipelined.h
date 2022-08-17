@@ -273,11 +273,11 @@ public:
           ++this->smem_iterator_B_;
 
           // Add negative offsets to return iterators to the 'start' of the circular buffer in shared memory
-          if (smem_write_stage_idx == 1) {
-            this->smem_iterator_A_.add_tile_offset({0, -Base::kStages});
+          if (smem_write_stage_idx == 1) {//BTBT smem在一个kWarpGemmIterations内是在一个stage的pointer范围内操作,这里会先把两个stage逐个store上glb暂存到reg的数据,然后再把stage的指针指向stage 0再逐个填充stage,就是个环状缓存
+            this->smem_iterator_A_.add_tile_offset({0, -Base::kStages});//因此可以推断,stage 0和1的数据片区是连续的,不重置的话smem_iterator_A_一直往前填充以及warp_tile_iterator_A_一直往前取数就可以从stage 0 到stage 1
             this->smem_iterator_B_.add_tile_offset({-Base::kStages, 0});
           }
-          else {
+          else {//可部分参考上面if块的结论
             this->warp_tile_iterator_A_.add_tile_offset(
                 {0, -Base::kStages * Policy::kPartitionsK * Base::kWarpGemmIterations});
             this->warp_tile_iterator_B_.add_tile_offset(
