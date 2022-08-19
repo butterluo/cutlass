@@ -5,3 +5,5 @@ build/
 .idea/
 .project
 .cproject
+.vscode
+.idea
