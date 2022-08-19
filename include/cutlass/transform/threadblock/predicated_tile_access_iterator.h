@@ -71,36 +71,36 @@ template <typename Shape_, typename Element_, typename Layout_, int AdvanceRank,
           typename ThreadMap_, typename AccessType_>
 class PredicatedTileAccessIteratorPredicates {
  public:
-  using Shape = Shape_;
+  using Shape = Shape_;//BlkTil
   using Element = Element_;
   using Layout = Layout_;
   static int const kAdvanceRank = AdvanceRank;
   using ThreadMap = ThreadMap_;
-  using AccessType = AccessType_;
+  using AccessType = AccessType_;//BTBT bias_relu 见predicated_tile_iterator#180
 
   using Index = typename Layout::Index;
   using LongIndex = typename Layout::LongIndex;
 
   using TensorCoord = typename Layout::TensorCoord;
-
+  //1=8/8 以AccessType取glb中的元素时,要获取够kElementsPerAccess个元素所需要的次数. 一般kElementsPerAccess和AccessType::kElements是相同的,因为都是为了凑够LDG128指令所需bits
   static int const kAccessesPerVector = ThreadMap::kElementsPerAccess / AccessType::kElements;
 
   static_assert(!(ThreadMap::kElementsPerAccess % AccessType::kElements),
     "Vectors implied by the thread map must be divisible by the access type.");
 
-  static int const kPredicatesPerByte = 4;
-  static int const kPredicatesPerWord = 4 * kPredicatesPerByte;
-
+  static int const kPredicatesPerByte = 4;//??? 为何4而不是8
+  static int const kPredicatesPerWord = 4 * kPredicatesPerByte;//每个word有4Byte,每Byte有4Predicates
+  //BTBT 每调一次memory.h.global_load()需要一个predicate. kCount是从glb中取一个BlkTil的元素时,每个thrd所需的迭代总数.
   static int const kPredicateCount = ThreadMap::Iterations::kCount * kAccessesPerVector;
 
-  /// Number of 32b words containing predicates
+  /// Number of 32b words containing predicates 要覆盖所需的predicate需要多少By,多少Word
   static int const kPredicateByteCount =
     (kPredicateCount + kPredicatesPerByte - 1) / kPredicatesPerByte;
   static int const kPredicateWordCount = (kPredicateByteCount + 3) / 4;
 
-  static unsigned const kPredicateMask = (1u << kPredicatesPerByte) - 1u;
+  static unsigned const kPredicateMask = (1u << kPredicatesPerByte) - 1u;//BTBT ???
 
-  static_assert(kPredicateWordCount <= 4, "Too many predicates.");
+  static_assert(kPredicateWordCount <= 4, "Too many predicates.");//当BlkTil某维度上的元素数太多且PlbmSz无法整除时,会导致predicate需求过多
 
   /// Predicate vector stores mask to guard accesses
   using Mask = Array<uint32_t, kPredicateWordCount>;
@@ -109,7 +109,7 @@ class PredicatedTileAccessIteratorPredicates {
   /// Guard predicates
   uint32_t predicates_[kPredicateWordCount];
 
-  /// Size of tensor
+  /// Size of tensor BTBT pblmSz,也就是A或B或C的整个矩阵的大小
   TensorCoord extent_;
 
   /// Initial offset for each thread
@@ -142,7 +142,7 @@ class PredicatedTileAccessIteratorPredicates {
     }
 
     CUTLASS_PRAGMA_UNROLL
-    for (int access_idx = 0; access_idx < ThreadMap::Iterations::kCount * kAccessesPerVector; ++access_idx) {
+    for (int access_idx = 0; access_idx < ThreadMap::Iterations::kCount * kAccessesPerVector; ++access_idx) {//该thrd某次小access是否要被mask掉(guard为false时)
 
       int s = access_idx / (ThreadMap::Iterations::kContiguous * kAccessesPerVector);
       
@@ -158,13 +158,13 @@ class PredicatedTileAccessIteratorPredicates {
 
       bool guard;
 
-      if (is_steady_state) {
+      if (is_steady_state) {//当在该次小access中所涉及的非kAdvanceRank维度对应的元素超出extent时,guard为false,即该次小access不会再加载元素.而kAdvanceRank对应的元素则是在is_steady_state为false时就已经控制在extent范围内了
         if (kAdvanceRank == 0) {
           guard = (coord.strided() < extent.strided());
         } else {
           guard = (coord.contiguous() < extent.contiguous());
         }
-      } else {
+      } else {//当这次小access所涉及的元素的任一边界coord已经超出extend时,guard为false,以为着这次小access会被mask掉,即调用memory.h的global_load时不会加载数据
         guard = (coord.strided() < extent.strided() &&
                  coord.contiguous() < extent.contiguous());
       }
@@ -186,7 +186,7 @@ class PredicatedTileAccessIteratorPredicates {
   void set_predicates(int thread_id, TensorCoord const &threadblock_offset) {
 
     TensorCoord residue_extent;
-    if (kAdvanceRank) {
+    if (kAdvanceRank) {//BTBT kAdvanceRank指向前迭代移动的维度,1是pitch的strid维度,0是pitch的contiguous维度
 
       typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.strided()) % Shape::kStrided;
       if (!residue_size) {
@@ -199,7 +199,7 @@ class PredicatedTileAccessIteratorPredicates {
         min(threadblock_offset.strided() + residue_size, extent_.strided())
       );
     } else {
-
+      //该blk负责的片区在contiguous维度上与BlkTil.Contiguous的整数倍相比多余出了多少元素
       typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.contiguous()) % Shape::kContiguous;
       if (!residue_size) {
         residue_size = Shape::kContiguous;
@@ -207,7 +207,7 @@ class PredicatedTileAccessIteratorPredicates {
 
       residue_offset_ = make_Coord(residue_size, 0);
       
-      residue_extent = make_Coord(
+      residue_extent = make_Coord(//在没对K进行划分(需要做规约)的情况下,threadblock_offset.contiguous=0
         min(extent_.contiguous(), threadblock_offset.contiguous() + residue_size),
         extent_.strided()
       );
@@ -366,7 +366,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
 
     /// Construct the Params object given a pitch-linear tensor's layout
     CUTLASS_HOST_DEVICE
-    Params(Layout const &layout) : 
+    Params(Layout const &layout) : //BTBT bias_relu 由于A的layout在predicated_tile_iterator中从RowMajor转成PitchLinear,故A时这里的layout.stride(0)A.K
       Base(layout.stride(0),
             MakePredicatedTileAccessIteratorDesc<Shape, Element, Layout, kAdvanceRank, ThreadMap>()()
         ) { }
@@ -445,11 +445,11 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
 
     the_predicates.set_predicates(thread_id, threadblock_offset);
           
-    // update internal pointers
+    // update internal pointers //BTBT A:stride_=A.K
     Layout layout(params_.stride_);
 
     if (!Gather) {
-      add_pointer_offset(layout(the_predicates.thread_offset_));
+      add_pointer_offset(layout(the_predicates.thread_offset_));//BTBT 将pointer_设为该thrd在整个A/B中的起始位置(字节为单位)
     } else {
       gather_offset_strided = the_predicates.thread_offset_.strided();
       add_pointer_offset(layout(make_Coord(the_predicates.thread_offset_.contiguous(), 0)));
@@ -581,7 +581,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
     ++the_predicates.iteration_strided_;
 
     if (the_predicates.iteration_strided_ < ThreadMap::Iterations::kStrided) {
-      if (!Gather) {
+      if (!Gather) {//inc_strided_@predicated_tile_access_iterator_params#226
         pointer_ += params_.inc_strided_;
       }
 

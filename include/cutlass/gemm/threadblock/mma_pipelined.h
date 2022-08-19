@@ -249,11 +249,11 @@ public:
 
     // Note: The main loop does not support Base::kWarpGemmIterations == 2.
     CUTLASS_GEMM_LOOP
-    for (; gemm_k_iterations > 0; --gemm_k_iterations) {
+    for (; gemm_k_iterations > 0; --gemm_k_iterations) {//BlkTil窗口沿PblmSz移动gemm_k_iterations次,每次取BlkTil个元素
       //
       // Loop over GEMM K dimension
       //
-
+      //WrpTil窗口沿BlkTil移动kWarpGemmIterations次,每次取WrpTil个元素
       CUTLASS_PRAGMA_UNROLL
       for (int warp_mma_k = 0; warp_mma_k < Base::kWarpGemmIterations; ++warp_mma_k) {//BTBT kWarpGemmIterations=shpWrp.K/arch::Mma::Sharp.K=32/4=8=wrpTil/InstrTil
 

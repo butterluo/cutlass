@@ -220,11 +220,11 @@ struct PitchLinearWarpRakedThreadMap {
   /// Tensor coordinate
   using TensorCoord = layout::PitchLinearCoord;
 
-  /// Tile shape
+  /// Tile shape //A:Pitch<BlkTil.K,M>,B:<N,K>
   using Shape = Shape_;
 
-  /// Number of threads total
-  static int const kThreads = Threads;//BTBT bias_relu  (BlkTil.m/WrpTil.m*BlkTil.n/WrpTil.n*BlkTil.k/WrpTil.k)*32, A和B都是128
+  /// Number of threads total BTBT (BlkTil.m/WrpTil.m*BlkTil.n/WrpTil.n*BlkTil.k/WrpTil.k)*32, A和B都是128
+  static int const kThreads = Threads;
 
   /// Extract vector length from Layout
   static int const kElementsPerAccess = ElementsPerAccess;//BTBT 每次transform可取到的elment数 bias_relu中是8个half
@@ -269,7 +269,7 @@ struct PitchLinearWarpRakedThreadMap {
     >;
 
     // Divide it into the number of warps, first partitioning the strided dimension then the
-    // contiguous. //BTBT 已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,现在共只有kWarpCount个wrp,那么在stride/contiguous方向分别要放多少wrp
+    // contiguous. 计算blk中多个wrp如何排布,已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,现在共只有kWarpCount个wrp,那么在stride/contiguous方向分别要放多少wrp
     static int const kWarpsStrided =
         (WarpAccessIterations::kStrided >= kWarpCount
              ? kWarpCount                        //BTBT A:16>=4所以kWarpsStrided=4. wrpCnt作为stride,wrpAcsItr::strid作为itr(因下面的wrpContiguou为1)

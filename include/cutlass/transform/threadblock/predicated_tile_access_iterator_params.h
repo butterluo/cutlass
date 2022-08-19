@@ -100,7 +100,7 @@ template <
   typename Shape, typename Element, int AdvanceRank, 
   typename ThreadMap>
 struct MakePredicatedTileAccessIteratorDesc <
-    Shape, Element, layout::PitchLinear, AdvanceRank, ThreadMap> {
+    Shape, Element, layout::PitchLinear, AdvanceRank, ThreadMap> {//BTBT bias_relu sm70
 
   CUTLASS_HOST_DEVICE
   PredicatedTileAccessIteratorDesc operator()() {
@@ -209,7 +209,7 @@ struct MakePredicatedTileAccessIteratorDesc <
 
 //
 // Parameters struct
-//
+////BTBT bias_relu sm70
 
 struct PredicatedTileAccessIteratorParams {
 
@@ -237,10 +237,10 @@ struct PredicatedTileAccessIteratorParams {
 
   CUTLASS_HOST_DEVICE
   Status initialize(LongIndex stride, PredicatedTileAccessIteratorDesc desc) {
-
+    //BTBT A:A.K
     stride_ = stride;
-
-    inc_strided_ = (LongIndex(stride_) * desc.threadmap_delta.strided()) *
+    //+inc_strided_相当于在A原某点ptr的基础上下移threadmap_delta.strided行,并将ptr地址单位转成Byte
+    inc_strided_ = (LongIndex(stride_) * desc.threadmap_delta.strided()) *  //threadmap_为前缀的变量可参考pitch_linear_thread_map.h
                      desc.element_size_bits / 8;
 
     if (desc.advance_rank) {

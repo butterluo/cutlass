@@ -372,7 +372,7 @@ private:
     OutputTileIterator source_iterator           ///< Threadblock tile coordinate in GEMM (in units of threadblock tiles)
     ) { 
     
-    typename OutputTileIterator::Fragment source_fragment;//array<hlf,16>
+    typename OutputTileIterator::Fragment source_fragment;//array<hlf,16> BTBT TOREFACTOR 负责保存C或bias,若无C,最好能够啥都没有
 
     source_fragment.clear();
 
@@ -392,7 +392,7 @@ private:
       //
       // Load the source
       //
-
+      //BTBT TOREFACTOR 加载C或bias,若无最好啥都不做
       source_iterator.load(source_fragment);//BTBT ??? 加载bias,注意bias是vector,如何与matrix进行映射与相加的呢?又如何映射到glb mem中呢?
       ++source_iterator;
 
@@ -401,7 +401,7 @@ private:
       //
       
       __syncthreads();
-      //BTBT ??? 下面是如何处理accumulator到SMEM的映射的呢?
+      //BTBT 把acc中A*B的结果映射加载到wrp_til_iter中的SMEM块中,以便从SMEM拿出来时可与正常的C和D的offset对齐 ??? 但下面是如何处理accumulator到SMEM的映射的呢?
       acc2smem_source_needed<cutlass::make_index_sequence<OutputTileIterator::kIterations>>::push(//warp_tile_iterator_中有SMEM的指针,这里是把对应accumulator的元素通过warp_tile_iterator_放到SMEM中
           iter, accum_fragment_iterator, this->warp_tile_iterator_);//BTBT ??? 当iter超出kIterations范围时将不会执行acc2smem_source_needed::helper(),否则会以Advance==iter的方式执行helper(),但为何要这样做?用模板可变参数这么复杂
 
@@ -413,7 +413,7 @@ private:
 
       typename SharedLoadIterator::Fragment aligned_accum_fragment[kPartitionsK];
 
-      shared_load_iterator_.load(aligned_accum_fragment[0]);//BTBT ??? 从SMEM中拿到accumulator的元素,这里是如何处理SMEM到reg的映射的呢?
+      shared_load_iterator_.load(aligned_accum_fragment[0]);//BTBT 从SMEM中拿到各thrd的acc映射加载进去的数据,并与当前thrd所负责的C和D的offset对齐 ??? 但从SMEM中拿到accumulator的元素,这里是如何处理SMEM到reg的映射的呢?
 
       // If the number of k-slices is > 1 - perform a reduction amongst the k-slices
       if (kPartitionsK > 1) {//BTBT bias_relu kPartitionsK=1

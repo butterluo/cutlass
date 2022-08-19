@@ -99,7 +99,7 @@ class MmaBase {
   // Dependent types
   //
 
-  /// Warp-level Mma
+  /// Warp-level Mma 在default_mma_core_sm70中,为cutlass::arch::Mma
   using Operator = typename Policy::Operator;
 
   /// Shape describing the overall GEMM computed from shared memory
@@ -111,7 +111,7 @@ class MmaBase {
                               Shape::kN / WarpGemm::kN,
                               Shape::kK / WarpGemm::kK>;
 
-  /// Number of warp-level GEMM oeprations
+  /// Number of warp-level GEMM oeprations 分母在default_mma_core_sm70中,为MmaTensorOpPolicy::Operator::Shape<16,16,4>
   static int const kWarpGemmIterations =
       (WarpGemm::kK / Operator::Policy::MmaShape::kK);
 

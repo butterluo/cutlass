@@ -222,22 +222,22 @@ template <
 >
 struct RowArrangement<Shape, WarpsRemaining, ElementsPerAccess, ElementSize, true> {
 
-  static int const kMemoryAccessSize = 256; // Preferred access size
+  static int const kMemoryAccessSize = 256; // Preferred access size //BTBT ??? 单位貌似Byte
   static int const kWarpSize = 32;
 
-  static int const kElementsPerAccess = ElementsPerAccess;
-  static int const kElementSize = ElementSize;
+  static int const kElementsPerAccess = ElementsPerAccess;//128/bitsof(half)=8
+  static int const kElementSize = ElementSize;//bitsof(half)=16
 
   struct Detail {
-    static int const kShapeRow = Shape::kRow / WarpsRemaining;//4/WarpsRemaining
-    static int const kShapeWidth = Shape::kColumn / kElementsPerAccess;//128/8=16
+    static int const kShapeRow = Shape::kRow / WarpsRemaining;//4/1 每个wrp负责多少row
+    static int const kShapeWidth = Shape::kColumn / kElementsPerAccess;//128/8=16 一个col中的元素需要多少次access
 
     static int const kTargetMemoryAccessWidth = 
-      kMemoryAccessSize / (kElementsPerAccess * kElementSize / 8);//256/(8*16/8)=16
+      kMemoryAccessSize / (kElementsPerAccess * kElementSize / 8);//256/(8*16/8)=16 做这么多次access就可以获取kMemoryAccessSize大小的数据
 
-    static int const kTargetAccessRows = kWarpSize / kTargetMemoryAccessWidth;//2
+    static int const kTargetAccessRows = kWarpSize / kTargetMemoryAccessWidth;//2 ??? 每次access由几个thrd负责?还是每个wrp可做几次kMemoryAccessSize大小的数据access?
   };
-
+  //??? wrp在col维度上每次迭代的宽度?
   static int const kAccessWidth = 
     (Detail::kTargetAccessRows > Detail::kShapeRow ?
       kWarpSize / Detail::kShapeRow
@@ -245,17 +245,17 @@ struct RowArrangement<Shape, WarpsRemaining, ElementsPerAccess, ElementSize, tru
           Detail::kShapeWidth,
         const_min(kWarpSize, kMemoryAccessSize / (kElementsPerAccess * kElementSize / 8))
         ));//16
-
+  //??? wrp每次row维度的访问(迭代)会涉及多少row
   static int const kAccessRows =
     (Detail::kTargetAccessRows > Detail::kShapeRow ?
       Detail::kShapeRow
       : const_min(Shape::kRow, kWarpSize / kAccessWidth));//2
-
-  static int const kIterationsRow = Detail::kShapeRow / kAccessRows;
-  static int const kDeltaRow = kAccessRows;//2
-
-  static int const kIterationsColumn = Detail::kShapeWidth / kAccessWidth;
-  static int const kDeltaColumn = kAccessWidth * kElementsPerAccess;//16*8=128
+  //每wrp在row的维度要迭代多少次才能计算完它所负责的row
+  static int const kIterationsRow = Detail::kShapeRow / kAccessRows;//2=4/2
+  static int const kDeltaRow = kAccessRows;//2 wrp在row维度的每次迭代计算多少row
+  //每wrp在col的维度要迭代多少次才能计算完它所负责的col上的access次数
+  static int const kIterationsColumn = Detail::kShapeWidth / kAccessWidth;//1
+  static int const kDeltaColumn = kAccessWidth * kElementsPerAccess;//16*8=128 wrp在col维度上每次迭代计算多少elm
 
   static_assert( kAccessWidth * kElementsPerAccess <= Shape::kColumn, "Accessing too many elements per access");
   static_assert( kIterationsColumn > 0, "Iteration Count Column must be > 0" );
@@ -290,7 +290,7 @@ struct OutputTileOptimalThreadMap {
 
   static int const kWarpSize = 32;
   static int const kThreads = Threads;
-  static int const kWarpCount = kThreads / kWarpSize;
+  static int const kWarpCount = kThreads / kWarpSize;//BTBT 一个blk内有多少wrp
 
   static int const kElementsPerAccess = ElementsPerAccess;
   static int const kElementSize = ElementSize;
@@ -301,7 +301,7 @@ struct OutputTileOptimalThreadMap {
 
   struct Detail {
 
-    // Clusters
+    // Clusters 一个wrp负责多少个clu
     static int const kIterationsCluster = 
       ((Shape::kCluster > kWarpCount) ?
         Shape::kCluster / kWarpCount
@@ -316,36 +316,36 @@ struct OutputTileOptimalThreadMap {
       ((Shape::kCluster > kWarpCount) ?
         Shape::kRow * Shape::kGroup * Shape::kCluster / kIterationsCluster
         : 1);
-
+    //一个clust分到(由)多少个wrp负责
     static int const kWarpPartitionsCluster =
       ((Shape::kCluster > kWarpCount) ?
-        kWarpCount
-        : kWarpCount / Shape::kCluster);
-
+        kWarpCount //???? 此情况每个wrp都有参与到每个clu的计算?
+        : kWarpCount / Shape::kCluster);//2>4?4:4/2
+    /*一个cluster内可分配多少wrp给到clust内的grp*/
     static int const kWarpsRemainingForGroups =
       ((Shape::kCluster > kWarpCount) ? 1 : kWarpCount / Shape::kCluster);//2>4?1:(4/2)
 
-    // Groups
+    // Groups BTBT 一个wrp负责多少个grp
     static int const kIterationsGroup =
       ((Shape::kGroup > kWarpsRemainingForGroups) ?
         Shape::kGroup / kWarpsRemainingForGroups
         : 1);//4>2?(4/2):1
-
+    //BTBT ??? 代表啥?
     static int const kDeltaGroup =
       ((Shape::kGroup > kWarpsRemainingForGroups) ?
         Shape::kRow * Count::kRow * Shape::kGroup / kIterationsGroup
         : 1);//4>2?(4*2*4/2=16):1
-
+    //???
     static int const kCompactedDeltaGroup =
       ((Shape::kGroup > kWarpsRemainingForGroups) ?
         Shape::kRow * Shape::kGroup / kIterationsGroup
         : 1);
-
+    //??? 一个grp可以分到(由)多少个wrp去负责
     static int const kWarpPartitionsGroup =
       ((Shape::kGroup > kWarpsRemainingForGroups) ?
         1
         : kWarpsRemainingForGroups / Shape::kGroup);//4>2?1:(2/4)
-
+    //??? 怎么跟上一个一样?一个grp可以分到多少个wrp给到grp内部的row
     static int const kWarpsRemainingForRows =
       ((Shape::kGroup > kWarpsRemainingForGroups) ?
         1
@@ -357,19 +357,19 @@ struct OutputTileOptimalThreadMap {
       kWarpsRemainingForRows,//WarpsRemaining=1
       kElementsPerAccess,//8
       kElementSize,//16
-      (Shape::kRow > kWarpsRemainingForRows)//is2dTile=(4>1)
+      (Shape::kRow > kWarpsRemainingForRows)//is2dTile=(4>1) 如果row的数目比分给它的wrp要多的话,就采用2d的RowArrangement
     >;
 
     // Warp partitions
     using WarpPartitions = OutputTileShape<
       RowArrangement::kWarpPartitionsColumn,//1
       RowArrangement::kWarpPartitionsRow,//1
-      kWarpPartitionsGroup,
-      kWarpPartitionsCluster,
+      kWarpPartitionsGroup, //1
+      kWarpPartitionsCluster,//2
       1>;
 
-    static int const kAccessWidth = RowArrangement::kAccessWidth;
-    static int const kAccessRows = RowArrangement::kAccessRows;
+    static int const kAccessWidth = RowArrangement::kAccessWidth;//16
+    static int const kAccessRows = RowArrangement::kAccessRows;//2
   };
 
   //
@@ -378,7 +378,7 @@ struct OutputTileOptimalThreadMap {
 
   using Iterations = OutputTileShape<
     Detail::RowArrangement::kIterationsColumn, //col=1
-    Detail::RowArrangement::kIterationsRow, //row=1
+    Detail::RowArrangement::kIterationsRow, //row=2
     Detail::kIterationsGroup, //grp=2
     Detail::kIterationsCluster, //clu=1
     1>;//til=1,  kCount=col*row*grp*clu*til=2

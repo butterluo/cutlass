@@ -52,3 +52,15 @@ Instr lvl
 计算坐标变化:
 
 advance dimension: 移动的那个rank
+
+
+约束:
+kernel/gemm.h中
+	BlkTil要被WrpTil整除M,N
+mma_tensor_op_sm70中:
+	WrpTil需要被InterleavedTileShape<32,32,4>整除M,N ??? InterleavedTileShape是干嘛的
+	WrpTil需要被ArchMmaOperator::Shape<16,16,4>整除M,N ??? 为何是<16,16,4>
+
+
+???
+BlkTil不在K维度划分,而是在K维度迭代么

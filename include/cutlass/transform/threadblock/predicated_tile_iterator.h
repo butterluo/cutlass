@@ -175,8 +175,8 @@ class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
 
   using Pointer = Element *;
   using NonConstPointer = typename platform::remove_const<Element>::type *;
-
-  /// Type used for internal memory accesses
+  //BTBT bias_relu AccessSize来自default_gemm_configuration#168,为128/bitsOf(half)=8
+  /// Type used for internal memory accesses BTBT AlignedArray@array.h#551. Alignment=8*16/8=16Byte
   using AccessType = AlignedArray<Element, AccessSize, (AccessSize * sizeof_bits<Element>::value / 8)>;
 
   /// Underlying iterator to compute the addresses
@@ -188,7 +188,7 @@ class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
 
   /// Fragment object to be loaded or stored
   using Fragment = cutlass::Array<Element, ThreadMap::Iterations::kCount *
-                                               ThreadMap::kElementsPerAccess>;
+                                               ThreadMap::kElementsPerAccess>;//4*8=32
 
   /// Predicate vector stores mask to guard accesses
   using Mask = typename TileAccessIterator::Mask;
