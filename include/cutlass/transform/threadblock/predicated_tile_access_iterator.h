@@ -345,7 +345,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
   using Pointer = Element *;
   using NonConstPointer = typename platform::remove_const<Element>::type *;
 
-  using UnderlyingPredicates = PredicatedTileAccessIteratorPredicates<
+  using UnderlyingPredicates = PredicatedTileAccessIteratorPredicates<//在本文件上方
       Shape, Element, Layout, AdvanceRank, ThreadMap, AccessType>;
 
   static int const kAccessesPerVector = ThreadMap::kElementsPerAccess / AccessType::kElements;
@@ -356,7 +356,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
   using Mask = typename UnderlyingPredicates::Mask;
 
   /// Uses a non-template class
-  struct Params : PredicatedTileAccessIteratorParams {
+  struct Params : PredicatedTileAccessIteratorParams {// predicated_tile_access_iterator_params.h
     
     using Base = PredicatedTileAccessIteratorParams;
 

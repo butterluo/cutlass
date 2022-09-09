@@ -79,9 +79,9 @@ struct MmaPolicy {
 /// Structure to compute the matrix product targeting CUDA cores and SIMT math
 /// instructions.
 template <
-    /// Size of the Gemm problem - concept: gemm::GemmShape<>
+    /// Size of the Gemm problem - concept: gemm::GemmShape<>   default_mma_core_sm70.Shape(blkShape)
     typename Shape_,
-    /// Policy describing tuning details (concept: MmaPolicy)
+    /// Policy describing tuning details (concept: MmaPolicy)  default_mma_core_sm70.h.MmaPolicy which defined in this file
     typename Policy_,
     /// Number of stages,
     int Stages,
@@ -99,30 +99,30 @@ class MmaBase {
   // Dependent types
   //
 
-  /// Warp-level Mma 在default_mma_core_sm70中,为cutlass::arch::Mma
+  /// Warp-level Mma BTBT default_mma_core_sm70.MmaVoltaTensorOp
   using Operator = typename Policy::Operator;
 
   /// Shape describing the overall GEMM computed from shared memory
   /// by each warp.
-  using WarpGemm = typename Policy::Operator::Shape;
+  using WarpGemm = typename Policy::Operator::Shape;//BTBT default_mma_core_sm70.MmaVoltaTensorOp.Shape which is WarpShape
 
   /// Shape describing the number of warps filling the CTA
-  using WarpCount = GemmShape<Shape::kM / WarpGemm::kM,
+  using WarpCount = GemmShape<Shape::kM / WarpGemm::kM,  //blkTilM/wrpTilM
                               Shape::kN / WarpGemm::kN,
                               Shape::kK / WarpGemm::kK>;
 
-  /// Number of warp-level GEMM oeprations 分母在default_mma_core_sm70中,为MmaTensorOpPolicy::Operator::Shape<16,16,4>
+  /// Number of warp-level GEMM oeprations 分母在default_mma_core_sm70中,为MmaTensorOpPolicy::Operator::Shape<16,16,4>其实也是同一页要调用的指令的对应的arch::Mma::Shape,
   static int const kWarpGemmIterations =
-      (WarpGemm::kK / Operator::Policy::MmaShape::kK);
+      (WarpGemm::kK / Operator::Policy::MmaShape::kK);//这里是wrpK/mmaK,即一个wrp的数据要处理完需要迭代做多少次mma
 
   /// Number of stages //BTBT bias_relu 在mma_pipelined中设为2
   static int const kStages = Stages;
 
   /// Tensor reference to the A operand
-  using TensorRefA = TensorRef<typename Operator::ElementA, typename Operator::LayoutA>;
+  using TensorRefA = TensorRef<typename Operator::ElementA, typename Operator::LayoutA>;//default_mma_core_sm70.SmemLayoutA  RowMajorVoltaTensorOpMultiplicandCrosswise@tensor_op_multiplicand_sm70.h:948
 
   /// Tensor reference to the B operand
-  using TensorRefB = TensorRef<typename Operator::ElementB, typename Operator::LayoutB>;
+  using TensorRefB = TensorRef<typename Operator::ElementB, typename Operator::LayoutB>;//default_mma_core_sm70.SmemLayoutB   RowMajorVoltaTensorOpMultiplicandBCongruous
 
   //
   // Nested structs
@@ -162,9 +162,9 @@ class MmaBase {
     // Methods
     //
 
-    /// Returns a layout object for the A matrix //BTBT RowMajorVoltaTensorOpMultiplicandCrosswise@tensor_op_multiplicand_sm70#948 <128,64>
+    /// Returns a layout object for the A matrix //BTBT RowMajorVoltaTensorOpMultiplicandCrosswise@tensor_op_multiplicand_sm70.h:948 <128,64>
     CUTLASS_DEVICE
-    static typename Operator::LayoutA LayoutA() {
+    static typename Operator::LayoutA LayoutA() {//return RowMajorVoltaTensorOpMultiplicandCrosswise.strid=ShapeA.row=128=blkTilM without pad
       return Operator::LayoutA::packed({ShapeA::kRow, ShapeA::kColumn});
     }
 

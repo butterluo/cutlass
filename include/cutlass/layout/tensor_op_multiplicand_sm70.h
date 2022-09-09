@@ -969,7 +969,7 @@ struct RowMajorVoltaTensorOpMultiplicandCrosswise {
   // Invariants
   //
 
-  using Base = VoltaTensorOpMultiplicandCrosswise<ElementSize, KBlock>;
+  using Base = VoltaTensorOpMultiplicandCrosswise<ElementSize, KBlock>;//:738
 
   /// This layout is optimized for 64b accesses
   static int const kAccessSize = Base::kAccessSize;

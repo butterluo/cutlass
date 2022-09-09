@@ -55,7 +55,7 @@ namespace threadblock {
 
 /// Structure to compute the matrix product targeting CUDA cores and SIMT math instructions.
 template <
-  /// Size of the Gemm problem - concept: gemm::GemmShape<>
+  /// Size of the Gemm problem - concept: gemm::GemmShape<> default_mma_core_sm70.Shape(blkShape)
   typename Shape_,
   /// Iterates over tiles of A operand in global memory 
   //  (concept: ReadableTileIterator | ForwardTileIterator | MaskedTileIterator)
@@ -73,7 +73,7 @@ template <
   typename ElementC_,
   /// Data type of accumulator matrix
   typename LayoutC_,
-  /// Policy describing tuning details (concept: MmaPolicy)
+  /// Policy describing tuning details (concept: MmaPolicy) default_mma_core_sm70.MmaPolicy
   typename Policy_,
   /// Transformation applied to A operand
   typename TransformA_ = NumericArrayConverter<
@@ -160,8 +160,8 @@ public:
     int lane_idx                                        ///< ID of each thread within a warp
   ):
     Base(shared_storage, thread_idx, warp_idx, lane_idx),
-    smem_iterator_A_(shared_storage.operand_A_ref(), thread_idx),
-    smem_iterator_B_(shared_storage.operand_B_ref(), thread_idx) {
+    smem_iterator_A_(shared_storage.operand_A_ref(), thread_idx),  //BTBT 这里shared_storage.operand_A_ref()是一块smem内存,在上一行MmaBase构造时也把同一块smem传入warp_tile_iterator_A_.
+    smem_iterator_B_(shared_storage.operand_B_ref(), thread_idx) {    //因此,smem_iterator_A_负责从glb写入数据到smem,而warp_tile_iterator_A_负责从smem读相应数据给到wrp的mma运算使用
 
     // Compute warp location within threadblock tile by mapping the warp_id to
     // three coordinates:

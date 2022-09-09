@@ -1035,11 +1035,11 @@ class RegularTileIterator<
       "Specialization for pitch-linear iterator may along advance along the "
       "contiguous(rank=0) or strided(rank=1) dimension.");
 
-  using Shape = Shape_;
+  using Shape = Shape_;//BTBT PitchLinearShape<BlkTilK,M>
   using Element = Element_;
-  using Layout =
-      layout::VoltaTensorOpMultiplicandCrosswise<sizeof_bits<Element_>::value,
-                                                 Shape::kContiguous>;
+  using Layout = //BTBT tensor_op_multiplicand_sm70.h:738
+      layout::VoltaTensorOpMultiplicandCrosswise<sizeof_bits<Element_>::value,//half是16
+                                                 Shape::kContiguous>;//BlkTilK
   static int const kAdvanceRank = AdvanceRank;
 
   using Index = typename Layout::Index;
@@ -1048,7 +1048,7 @@ class RegularTileIterator<
   using TensorRef = TensorRef<Element, Layout>;
   using TensorCoord = typename Layout::TensorCoord;
 
-  using ThreadMap = ThreadMap_;
+  using ThreadMap = ThreadMap_;//transform/pitch_linear_thread_map.h:218
 
   /// Internal details made public to facilitate introspection
   struct Detail {
@@ -1058,7 +1058,7 @@ class RegularTileIterator<
 
     /// Iterations for the kElementsPerAccess of ThreadMap
     static int const kIterarionsPerAccess =
-        ThreadMap::kElementsPerAccess / Layout::kElementsPerAccess/*VoltaTensorOpMultiplicandCrosswise.kElementsPerAccess=4*/;
+        ThreadMap::kElementsPerAccess / Layout::kElementsPerAccess/*VoltaTensorOpMultiplicandCrosswise.kElementsPerAccess=4个half,即凑够64b*/;
 
     /// Contiguous elements per line
     static int const kContiguousElementsPerLine = 4;
@@ -1084,7 +1084,7 @@ class RegularTileIterator<
   Index line_size;
 
   /// Internal pointer to first access of tile
-  AccessType *pointer_[Detail::kPointerCount];
+  AccessType *pointer_[Detail::kPointerCount];//BTBT ??? 有2个pointer
 
   /// Internal byte offset
   Index byte_offset_;
@@ -1093,10 +1093,10 @@ class RegularTileIterator<
  public:
   /// Construct a TileIterator with zero threadblock offset
   CUTLASS_HOST_DEVICE
-  RegularTileIterator(TensorRef ref,  ///< Pointer to start of tensor
+  RegularTileIterator(TensorRef ref,  ///< Pointer to start of tensor  mma_base.TensorRefA
                       int thread_id   ///< ID of each participating thread
                       )
-      : line_size(ref.stride(0) * Detail::kContiguousElementsPerLine / Layout::kElementsPerAccess),//BTBT ??? line_size=BlkTilM*4/4=128
+      : line_size(ref.stride(0) * Detail::kContiguousElementsPerLine / Layout::kElementsPerAccess),//BTBT line_size=BlkTilM*4/4=128
         byte_offset_(0) {
 
     layout::PitchLinearCoord thread_offset_base = // the offset of a thread within a threadblock tile (units of elements)
@@ -1109,7 +1109,7 @@ class RegularTileIterator<
       layout::PitchLinearCoord thread_offset_in_threadblock_tile =
           thread_offset_base +
           layout::PitchLinearCoord{
-              0, ThreadMap::Detail::WarpThreadArrangement::kStrided * i};//A的WarpThreadArrangement为<4,8>
+              0, ThreadMap::Detail::WarpThreadArrangement::kStrided * i};//A的WarpThreadArrangement为<4,8> ??? 此时有两个pointer,每个pointer处理在WrpThrdArrage.strid维度相邻的两个wrp?
 
       // initialize pointer
       pointer_[i] = reinterpret_cast<AccessType *>(
@@ -1349,7 +1349,7 @@ class RegularTileIterator<Shape_, Element_,
 ///            WriteableContiguousTileIteratorConcept
 ///BTBT bias_relu sm70 SmemIteratorA@default_mma_core_sm70
 template <
-  typename Shape_, //BTBT A:Matrix<BlkTilM,K>
+  typename Shape_, //BTBT default_mma_core_sm70.SmemIteratorA:Matrix<BlkTilM,K>
   typename Element_,
   int AdvanceRank,//BTBT A:0
   typename ThreadMap_,  
@@ -1398,7 +1398,7 @@ class RegularTileIterator<Shape_, Element_,
  public:
   /// Construct a TileIterator with zero threadblock offset
   CUTLASS_HOST_DEVICE
-  RegularTileIterator(TensorRef ref,  ///< Pointer to start of tensor
+  RegularTileIterator(TensorRef ref,  ///< Pointer to start of tensor BTBT 来自mma_base的TensorRefA
                       int thread_id   ///< ID of each participating thread
                       )
       : iterator_({ref.data(), ref.stride()}, thread_id) {}

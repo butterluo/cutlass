@@ -182,7 +182,7 @@ class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
   /// Underlying iterator to compute the addresses
   using TileAccessIterator =
       PredicatedTileAccessIterator<Shape, Element, Layout, kAdvanceRank,
-                                   ThreadMap, AccessType, Gather>;
+                                   ThreadMap, AccessType, Gather>;//BTBT predicated_tile_access_iterator.h
 
   static int const kAccessesPerVector = TileAccessIterator::kAccessesPerVector;
 

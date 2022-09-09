@@ -54,13 +54,33 @@ Instr lvl
 advance dimension: 移动的那个rank
 
 
+循环:
+一个Blk中BlkTil沿K滑动:
+	kernel/gemm#235 滑动次数为pblmSz.K/BlkTil.K向上取整,这里是没有unroll的,估计是担心指令太多还是编译器过度优化???
+一个WrpTil包含了多次mma(kWarpGemmIterations)
+	mma_base#115中有注释 kWarpGemmIterations=WrpTil.K/mma指令在K的长度(4)
+一次mma_tensor_op操作的循环请参考mma_tensor_op_sm70#240的一堆注释
+	除了BlkTil,WrpTil,还有固定为<32,32,4>的InterleavedTileShape,以及更小的ArchMmaOperator::Shape(即arch::Mma::Shape,固定为<16,16,8>)
+	而真正执行时的arch::Mma::Shape则对应了mma.sync.aligned.m8n8k4指令,即<8,8,4>
+
 约束:
 kernel/gemm.h中
+	BlkTil要被WrpTil整除M,N
+mma_pipelined&mma_base:
+	#137 kStages==2
+default_mma_core_sm70#395
 	BlkTil要被WrpTil整除M,N
 mma_tensor_op_sm70中:
 	WrpTil需要被InterleavedTileShape<32,32,4>整除M,N ??? InterleavedTileShape是干嘛的
 	WrpTil需要被ArchMmaOperator::Shape<16,16,4>整除M,N ??? 为何是<16,16,4>
-
+epilogue
+	SharedLoadIterator::Fragment::kElements == OutputTileIterator::Fragment::kElements
+	OutputTileIterator::kElementsPerAccess
+	!(OutputTileIterator::Fragment::kElements % OutputTileIterator::kElementsPerAccess)
+	kPartitionsK == 1 || Base::kFragmentsPerIteration == 1
+default_epilogue_volta_tensor_op
+	kSharedMemAlignment == 8, "Shared memory alignment must be 8B"
 
 ???
 BlkTil不在K维度划分,而是在K维度迭代么
+SmemIterA用到的SmemLayoutA是针对64b优化的,是否要设置smem每个bank大小为64b,Cutls有该默认设置么

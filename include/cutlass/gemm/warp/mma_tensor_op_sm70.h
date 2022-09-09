@@ -82,7 +82,7 @@ template <
 >
 class MmaVoltaTensorOp {
 public:
-  /// Shape of warp-level matrix operation (concept: GemmShape)
+  /// Shape of warp-level matrix operation (concept: GemmShape) //BTBT WrpTil
   using Shape = Shape_;
 
   /// Data type of multiplicand A
@@ -138,9 +138,9 @@ public:
                 "Shape must be a multiple of InterleavedTileShape.");
 public:
 
-  /// Iterates over the A operand in memory
+  /// Iterates over the A operand in memory //BTBT mma_tensor_op_tile_iterator_sm70#2041
   using IteratorA = MmaVoltaTensorOpMultiplicandTileIterator<
-    MatrixShape<Shape::kM, Shape::kK>,
+    MatrixShape<Shape::kM, Shape::kK>,//BTBT <WrpTil.M,WrpTil.K>
     Operand::kA,
     ElementA,
     LayoutA,
@@ -155,9 +155,9 @@ public:
   /// Storage for A tile
   using FragmentA = typename IteratorA::Fragment;
 
-  /// Iterates over the B operand in memory
+  /// Iterates over the B operand in memory //BTBT mma_tensor_op_tile_iterator_sm70#910
   using IteratorB = MmaVoltaTensorOpMultiplicandTileIterator<
-    MatrixShape<Shape::kK, Shape::kN>,
+    MatrixShape<Shape::kK, Shape::kN>,//BTBT <WrpTil.K,WrpTil.M>
     Operand::kB,
     ElementB,
     LayoutB,
@@ -221,9 +221,9 @@ public:
   /// Performs a warp-level matrix multiply-accumulate operation
   CUTLASS_DEVICE
   void operator()(
-    FragmentC &D,       //Array<half,128>
-    FragmentA const &A, //Array<half,8>
-    FragmentB const &B, 
+    FragmentC &D,       //Array<half,128> 128=WrpTil.M(64)*WrpTil.N(64)/32thrds
+    FragmentA const &A, //Array<half,16> 16=WrpTil.M(64) * arch::Mma::Shape.K(4) / 32thrds * 2 //BTBT 这里最后为何乘2,因为不同MMA矩阵或quad矩阵即使同一个thrd同一批数据,都要多取一次??? 见s9593v2#17#18线程A0在MMA0矩阵的quad 0和MMA1矩阵的quad 0虽然取的都是同一批数,但由于与之合作的线程不一样(B0...3或B4...7),故要取两次,但不确定是否这个原因?
+    FragmentB const &B,  //Array<half,16>
     FragmentC const &C)  {
 
     using MmaOperandA = typename ArchMmaOperator::FragmentA;//mma_sm70#257 Array<half,4>
@@ -237,14 +237,14 @@ public:
     MmaOperandC *ptr_D = reinterpret_cast<MmaOperandC *>(&D);
 
     CUTLASS_PRAGMA_UNROLL
-    for (int outer_col = 0; outer_col < TileIterations::kColumn; ++outer_col) {//BTBT WrpTilN/32=2
+    for (int outer_col = 0; outer_col < TileIterations::kColumn; ++outer_col) {//BTBT WrpTil.N/InterleavedTileShape.N=64/32=2 见s9593v2#18,一个tc操作涉及整个wrp共32thrd,一个wrp计算m32n32k4
       CUTLASS_PRAGMA_UNROLL
-      for (int inner_col = 0; inner_col < MmaIterations::kColumn; ++inner_col) {//BTBT 32/ArchMmaShp.N=2
+      for (int inner_col = 0; inner_col < MmaIterations::kColumn; ++inner_col) {//BTBT InterleavedTileShape.N/ArchMmaShp.N=32/16=2 见s9593v2#18,一个tc操作将wrp分4份每份16thrd交错参与,每份负责C中一个MMA矩阵(间隔分布)的计算(图中C的四种不同颜色),一个MMA矩阵由m16n16k4计算得到
         CUTLASS_PRAGMA_UNROLL
-        for (int outer_row = 0; outer_row < TileIterations::kRow; ++outer_row) {//BTBT WrpTilM/32=2
+        for (int outer_row = 0; outer_row < TileIterations::kRow; ++outer_row) {//BTBT WrpTil.M/InterleavedTileShape.M=2
           CUTLASS_PRAGMA_UNROLL
 
-          for (int inner_row = 0; inner_row < MmaIterations::kRow; ++inner_row) {//BTBT 32/ArchMmaShp.M=2
+          for (int inner_row = 0; inner_row < MmaIterations::kRow; ++inner_row) {//BTBT InterleavedTileShape.M/ArchMmaShp.M=2
       
             int op_col = inner_col + MmaIterations::kColumn * outer_col;
 
@@ -260,10 +260,10 @@ public:
                          (inner_col + MmaIterations::kColumn * 
                           (outer_row_serp + TileIterations::kRow * outer_col));
             mma(
-              ptr_D[op_idx],
-              ptr_A[op_row],
-              ptr_B[op_col],
-              ptr_D[op_idx]);
+              ptr_D[op_idx],//BTBT s9593v2#15#16#17#18
+              ptr_A[op_row],//续上,每个MMA矩阵由16thrd参与,然后又分成4个quad矩阵,每个quad由该MMA中的16thrd中的8thrd交错参与#17,组成MMA的quad也是间隔分布的#15,由m8n8k4计算得到,这就是该quad所涉及的8个thrd都要调用的mma.sync.aligned.m8n8k4的作用#17,所以A,B的类型为<half,4>得到的C,D的类型为<half,8>
+              ptr_B[op_col],//类型为Array<half,4>
+              ptr_D[op_idx]);//类型为Array<half,8>
 
           }
         }

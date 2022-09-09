@@ -283,8 +283,8 @@ struct Mma<
 
 #if defined(CUTLASS_ARCH_MMA_SM70_ENABLED)
 
-    unsigned const *A = reinterpret_cast<unsigned const *>(&a);
-    unsigned const *B = reinterpret_cast<unsigned const *>(&b);
+    unsigned const *A = reinterpret_cast<unsigned const *>(&a);//BTBT 这里的unsigned是unsigned int, 4字节, 故A[0]包含了两个half
+    unsigned const *B = reinterpret_cast<unsigned const *>(&b);//因此mma.sync.aligned.m8n8k4指令中的%0-11是每个元素都是2个half
     unsigned const *C = reinterpret_cast<unsigned const *>(&c);
     unsigned *D = reinterpret_cast<unsigned *>(&d);
 
@@ -586,7 +586,7 @@ struct Mma<
 
 #if defined(CUTLASS_ARCH_MMA_SM70_ENABLED)
 
-  unsigned const *A = reinterpret_cast<unsigned const *>(&a);
+  unsigned const *A = reinterpret_cast<unsigned const *>(&a);//BTBT 这里的unsigned是unsigned int, 4字节, 故A[0]包含了两个half
   unsigned const *B = reinterpret_cast<unsigned const *>(&b);
   float const *C = reinterpret_cast<float const *>(&c);
   float *D = reinterpret_cast<float *>(&d);

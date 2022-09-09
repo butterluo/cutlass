@@ -396,7 +396,7 @@ public:
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70 <-#910
 template <
     /// Size of the matrix to load (concept: PitchLinearShape)
     typename Shape_,
@@ -487,7 +487,7 @@ public:
 
   /// Fragment object holding a thread's part of a tile, needs on more time number of registers
  using Fragment = Array<Element, Shape::kContiguous *
-                                     InstructionShape::kStrided / kThreads * 2>;
+                                     InstructionShape::kStrided / kThreads * 2>;//BTBT WrpTil.N(64) * arch::Mma::Shape.K(4) / 32 * 2 = 16
 
 private:
 
@@ -907,7 +907,7 @@ public:
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70 WrpIteratorB
 template <
     /// Size of the matrix to load (concept: MatrixShape)
     typename Shape_,
@@ -1576,7 +1576,7 @@ class MmaVoltaTensorOpMultiplicandTileIterator<
   /// Fragment object holding a thread's part of a tile
   using Fragment =
       Array<Element,
-            Shape::kStrided * InstructionShape::kContiguous / kThreads * 2>;
+            Shape::kStrided * InstructionShape::kContiguous / kThreads * 2>;//BTBT WrpTil.M(64) * arch::Mma::Shape.K(4) / 32 * 2
 
  private:
 
@@ -2038,7 +2038,7 @@ class MmaVoltaTensorOpMultiplicandTileIterator<
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///BTBT bias_relu sm70
+///BTBT bias_relu sm70 WrpIteratorA
 template <
     /// Size of the matrix to load (concept: MatrixShape)
     typename Shape_,
@@ -2060,7 +2060,7 @@ class MmaVoltaTensorOpMultiplicandTileIterator<
     InstructionShape_, OpDelta_, 32> {
  public:
   /// Shape of tile to load (concept: PitchLinearShape)
-  using Shape = Shape_;
+  using Shape = Shape_; //BTBT <WrpTil.M,WrpTil.K> from mma_tensor_op_sm70#142
 
   /// Operand tag
   static Operand const kOperand = Operand_;
@@ -2079,7 +2079,7 @@ class MmaVoltaTensorOpMultiplicandTileIterator<
   using Layout = cutlass::layout::RowMajorVoltaTensorOpMultiplicandCrosswise<
       sizeof_bits<Element_>::value, kKBlock>;
 
-  /// Shape of one matrix product operation (concept: MatrixShape)
+  /// Shape of one matrix product operation (concept: MatrixShape) //BTBT arch::Mma::Shape<M,K>=<16,4> from mma_tensor_op_sm70#142
   using InstructionShape = InstructionShape_;
 
   /// Delta between *MMA operations (in units of *MMA operations, concept:

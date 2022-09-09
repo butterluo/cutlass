@@ -425,13 +425,13 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
   );
 
   /// Number of threads per warp
-  static int const kWarpSize = warp::WarpSize<arch::OpClassTensorOp>::value;
+	static const int kWarpSize = warp::WarpSize<arch::OpClassTensorOp>::value;
 
   /// Number of threads total
-  static int const kThreads = WarpCount::kCount * kWarpSize;
+	static const int kThreads = WarpCount::kCount * kWarpSize;
 
   /// Size of a threadblock-scoped access
-  static int const kAccessSizeInBits = 128;
+	static const int kAccessSizeInBits = 128;
 
   //
   // Shared memory layouts
@@ -448,7 +448,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
   // Iterators to write to shared memory
   //
 
-  /// ThreadMap of iterator A
+  /// ThreadMap of iterator A  transform/pitch_linear_thread_map.h:218
   using IteratorThreadMapA = transform::PitchLinearWarpRakedThreadMap<
     layout::PitchLinearShape<Shape::kK, Shape::kM>,
     kThreads,
@@ -465,7 +465,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
     IteratorThreadMapA
   >;
 
-  /// Policy of iterator B //BTBT pitch_linear_thread_map.h
+  /// Policy of iterator B //BTBT pitch_linear_thread_map.h:218
   using IteratorThreadMapB = transform::PitchLinearWarpRakedThreadMap<
     layout::PitchLinearShape<Shape::kN, Shape::kK>,
     kThreads,
