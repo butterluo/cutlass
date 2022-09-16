@@ -1113,7 +1113,7 @@ class RegularTileIterator<
 
       // initialize pointer
       pointer_[i] = reinterpret_cast<AccessType *>(
-          ref.data() + ref.offset(thread_offset_in_threadblock_tile));//A:ref.offset最终调VoltaTensorOpMultiplicandCrosswise.op()
+          ref.data() + ref.offset(thread_offset_in_threadblock_tile));//A:ref.offset最终调VoltaTensorOpMultiplicandCrosswise.op() 将取数指针指向摊平的数据
     }
   }
 

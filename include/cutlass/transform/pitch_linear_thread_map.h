@@ -227,7 +227,7 @@ struct PitchLinearWarpRakedThreadMap {
   static int const kThreads = Threads;
 
   /// Extract vector length from Layout
-  static int const kElementsPerAccess = ElementsPerAccess;//BTBT 每次transform可取到的elment数 bias_relu中是8个half
+  static int const kElementsPerAccess = ElementsPerAccess;//BTBT 每次transform可取到的elment数 bias_relu中是8个half,凑够128b
 
   /// Shape of access by each thread
   using ThreadAccessShape = layout::PitchLinearShape<kElementsPerAccess, 1>;
@@ -248,9 +248,9 @@ struct PitchLinearWarpRakedThreadMap {
       !(Shape::kContiguous % kElementsPerAccess),
       "Shape must be divisible by vector length.");
 
-    /// Compute the 'shape' of the overall tile in units of vectors //BTBT 已知每次访问能获取kElementsPerAccess个数,获取一个blkTile所需要的数要多少次访问,每次访问为一个vector,每次vector取kElementsPerAccess个数
-    using ShapeInAccesses = layout::PitchLinearShape<
-      Shape::kContiguous / kElementsPerAccess,//A:shpThrdBlk.K/8, B:shpThrdBlk.N/8
+    /// Compute the 'shape' of the overall tile in units of vectors
+    using ShapeInAccesses = layout::PitchLinearShape<//BTBT 已知每次访问能获取kElementsPerAccess个数,获取一个blkTile所需要的数要多少次访问,每次访问为一个vector,每次vector取kElementsPerAccess个元素
+      Shape::kContiguous / kElementsPerAccess,//A:blkTil.K/8, B:blkTil.N/8
       Shape::kStrided//A:shpThrdBlk.M, B:shpThrdBlk.K
     >;
 
@@ -263,15 +263,15 @@ struct PitchLinearWarpRakedThreadMap {
       "ShapeInAccesses must be divisible by WarpThreadArrangement.");
 
     // compute number of warp-level accesses total
-    using WarpAccessIterations = layout::PitchLinearShape<//BTBT WarpThreadArrangement是每wrp中thrd个数(contiguous/stride方向),要完成该blkTile所需要的acess数需要多少个wrp
+    using WarpAccessIterations = layout::PitchLinearShape<//BTBT WarpThreadArrangement是每wrp中thrd排布(contiguous/stride方向),假设每thrd每次取kElementsPerAccess个元素,要完成该blkTile所需要的acess数需要多少个wrp
       ShapeInAccesses::kContiguous / WarpThreadArrangement::kContiguous,//A:shpThrdBlk.K/8/4,这里是32/8/4=1; B:shpThrdBlk.N/8/4,这里是128/8/8=2
       ShapeInAccesses::kStrided / WarpThreadArrangement::kStrided//A:shpThrdBlk.M/8,这里是128/8=16; B:shpThrdBlk.K/4,这里是32/4=8
     >;
 
     // Divide it into the number of warps, first partitioning the strided dimension then the
-    // contiguous. 计算blk中多个wrp如何排布,已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,现在共只有kWarpCount个wrp,那么在stride/contiguous方向分别要放多少wrp
+    // contiguous. 计算blk中多个wrp如何排布,已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,现在共只有kWarpCount个wrp,那么在stride/contiguous方向分别要放多少wrp(也就是按现有的wrp总数kWarpCount,wrp应该在stride/contiguous如何排布,以便后续做Iterations次迭代访问)
     static int const kWarpsStrided =
-        (WarpAccessIterations::kStrided >= kWarpCount
+        (WarpAccessIterations::kStrided >= kWarpCount //BTBT 先排布strid方向的wrp,保证它不超过总数kWarpCount,即使wrp在strid方向的排布尽量大,然后再考虑cintiguous方向
              ? kWarpCount                        //BTBT A:16>=4所以kWarpsStrided=4. wrpCnt作为stride,wrpAcsItr::strid作为itr(因下面的wrpContiguou为1)
              : WarpAccessIterations::kStrided);
 
@@ -286,10 +286,10 @@ struct PitchLinearWarpRakedThreadMap {
     >;
   };
 
-  ///< Iterations along each dimension (concept: PitchLinearShape)//BTBT 已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,在contiguous方向有kWarpsContiguous个wrp,stride方向有kWarpsStrided的情况下,每个wrp(也就是每个wrp中的每个thrd)需要多少次迭代才能访问完WarpAccessIterations次
+  ///< Iterations along each dimension (concept: PitchLinearShape)//BTBT 已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,在contiguous方向有kWarpsContiguous个wrp,stride方向有kWarpsStrided的wrp排布下,每个wrp(也就是每个wrp中的每个thrd)需要多少次迭代才能访问完WarpAccessIterations次
   using Iterations = layout::PitchLinearShape<
     Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous, //A:1/1=1; B:2/1=2
-    Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided  //A:16/4=4: B:8/4=2
+    Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided  //A:16/4=4: B:8/4=2. 也就是说对于A
   >;
 
   static_assert(Iterations::kCount,

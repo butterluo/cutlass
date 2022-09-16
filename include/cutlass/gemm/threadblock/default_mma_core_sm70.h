@@ -488,7 +488,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
 
   // Define the warp-level tensor op //BTBT warp/mma_tensor_op_policy.h
   using Policy = cutlass::gemm::warp::MmaTensorOpPolicy<
-    cutlass::arch::Mma<
+    cutlass::arch::Mma<//BTBT mma_sm70.h:630
       cutlass::gemm::GemmShape<16, 16, 4>,
       32,
       ElementA,
