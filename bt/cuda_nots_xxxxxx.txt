@@ -55,10 +55,10 @@ mma_piplined.h
 	第二层itr: WrpTilK/Shape<16,16,4>K (???搞不懂为何这里arch::Mma::Shape写死<16,16,4>而不是配置的<8,8,4>,但配置又要后者才能合法通过)(mma_base.h:115)
 
 mma_tensor_op_sm70.h
-	第1层itr:
-	第2层itr:
-	第3层itr:
-	第4层itr:
+	第1层itr: WrpTilN/32       (32是mma_tensor_op_sm70写死的InterleavedTileShape<32,32,4>)
+	第2层itr: 32/ArchMmaShp.N (ArchMmaShp就是上面写死的Shape<16,16,4>)
+	第3层itr: WrpTilM/32
+	第4层itr: 32/ArchMmaShp.M
 	
 	
 
