@@ -44,7 +44,23 @@ Instr lvl
     并行形状在default_gemm#456中写死为GemmShape<8, 8, 4>
 
 
+**Tiling:
+PlbmSz: 5120,    4096,    4096
+BlkTil: M = 128, N = 128, K = 32
+WrpTil: M = 64, N = 64, K = 32
+MmaTil: M = 8, N = 8, K = 4  (又叫InstrTil)
 
+mma_piplined.h
+	第一层itr: pblmSz.K/BlkTil向上取整(kernel/gemm.h:235)
+	第二层itr: WrpTilK/Shape<16,16,4>K (???搞不懂为何这里arch::Mma::Shape写死<16,16,4>而不是配置的<8,8,4>,但配置又要后者才能合法通过)(mma_base.h:115)
+
+mma_tensor_op_sm70.h
+	第1层itr:
+	第2层itr:
+	第3层itr:
+	第4层itr:
+	
+	
 
 
 数据形状变化:

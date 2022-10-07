@@ -196,8 +196,8 @@ private:
     InterleavedTileShape::kN / ArchMmaOperator::Shape::kN  //BTBT 32/ArchMmaShp.N=2
   >;
   using TileIterations = MatrixShape<
-    Shape::kM / InterleavedTileShape::kM, //BTBT WrpTilM/32=2
-    Shape::kN / InterleavedTileShape::kN  //BTBT WrpTilN/32=2
+    Shape::kM / InterleavedTileShape::kM, //BTBT row:WrpTilM/32=2
+    Shape::kN / InterleavedTileShape::kN  //BTBT col:WrpTilN/32=2
   >;
 
   // Whether matrix B is reordered
