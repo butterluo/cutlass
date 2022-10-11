@@ -403,7 +403,7 @@ private:
       __syncthreads();
       //BTBT 把acc中A*B的结果映射加载到wrp_til_iter中的SMEM块中,以便从SMEM拿出来时可与正常的C和D的offset对齐 ??? 但下面是如何处理accumulator到SMEM的映射的呢?
       acc2smem_source_needed<cutlass::make_index_sequence<OutputTileIterator::kIterations>>::push(//warp_tile_iterator_中有SMEM的指针,这里是把对应accumulator的元素通过warp_tile_iterator_放到SMEM中
-          iter, accum_fragment_iterator, this->warp_tile_iterator_);//BTBT ??? 当iter超出kIterations范围时将不会执行acc2smem_source_needed::helper(),否则会以Advance==iter的方式执行helper(),但为何要这样做?用模板可变参数这么复杂
+          iter, accum_fragment_iterator, this->warp_tile_iterator_);//BTBT ??? 当iter超出 kIterations 范围时将不会执行acc2smem_source_needed::helper(),否则会以Advance==iter的方式执行helper(),但为何要这样做?用模板可变参数这么复杂
 
       __syncthreads();
 

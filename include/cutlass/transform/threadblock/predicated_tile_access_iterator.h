@@ -66,7 +66,7 @@ namespace threadblock {
 ////////////////////////////////////////////////////////////////////////////////
 
 /// PredicatedTileAccessIteratorPredicates
-///BTBT bias_relu sm70
+///BTBT bias_relu sm70 < :320
 template <typename Shape_, typename Element_, typename Layout_, int AdvanceRank,
           typename ThreadMap_, typename AccessType_>
 class PredicatedTileAccessIteratorPredicates {
@@ -74,7 +74,7 @@ class PredicatedTileAccessIteratorPredicates {
   using Shape = Shape_;//BlkTil
   using Element = Element_;
   using Layout = Layout_;
-  static int const kAdvanceRank = AdvanceRank;
+  static int const kAdvanceRank = AdvanceRank;//BTBT 在predicated_tile_iterator.h:649做过0/1互换,所以此时
   using ThreadMap = ThreadMap_;
   using AccessType = AccessType_;//BTBT bias_relu 见predicated_tile_iterator#180
 
@@ -183,10 +183,10 @@ class PredicatedTileAccessIteratorPredicates {
   }
 
   CUTLASS_HOST_DEVICE
-  void set_predicates(int thread_id, TensorCoord const &threadblock_offset) {
+  void set_predicates(int thread_id, TensorCoord const &threadblock_offset) {  //BTBT A:Pitch(blkOffsetK,M)
 
     TensorCoord residue_extent;
-    if (kAdvanceRank) {//BTBT kAdvanceRank指向前迭代移动的维度,1是pitch的strid维度,0是pitch的contiguous维度
+    if (kAdvanceRank) {//BTBT kAdvanceRank指向前迭代移动的维度,1是pitch的strid维度,0是pitch的contiguous维度. A:1沿
 
       typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.strided()) % Shape::kStrided;
       if (!residue_size) {
@@ -225,7 +225,7 @@ class PredicatedTileAccessIteratorPredicates {
   /// and thread ID
   CUTLASS_HOST_DEVICE
   PredicatedTileAccessIteratorPredicates(
-      /// Extent of tensor
+      /// Extent of tensor  //BTBT Pitch(pblmSzK,M)
       TensorCoord extent)
       : extent_(extent) {
 	}
@@ -317,7 +317,7 @@ class PredicatedTileAccessIterator;
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Specialization of PredicatedTileAccessIterator for pitch-linear data.
-///BTBT bias_relu sm70
+///BTBT bias_relu sm70 UnderlyingPredicates>69
 template <typename Shape_, typename Element_, int AdvanceRank,
           typename ThreadMap_, typename AccessType_, bool Gather>
 class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
@@ -345,7 +345,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
   using Pointer = Element *;
   using NonConstPointer = typename platform::remove_const<Element>::type *;
 
-  using UnderlyingPredicates = PredicatedTileAccessIteratorPredicates<//在本文件上方
+  using UnderlyingPredicates = PredicatedTileAccessIteratorPredicates<//在本文件 :69
       Shape, Element, Layout, AdvanceRank, ThreadMap, AccessType>;
 
   static int const kAccessesPerVector = ThreadMap::kElementsPerAccess / AccessType::kElements;
@@ -440,7 +440,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
 	pointer_(reinterpret_cast<BytePointer>(
             const_cast<NonConstPointer>(pointer))),
 	the_predicates(extent),
-        is_residue_tile_(true),
+        is_residue_tile_(true),//BTBT 指示是不是不能整除的那一块tile,刚开始时先处理不能整除的多余tile
         indices_(indices) {
 
     the_predicates.set_predicates(thread_id, threadblock_offset);

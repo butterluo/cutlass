@@ -144,7 +144,7 @@ public:
     Operand::kA,
     ElementA,
     LayoutA,
-    MatrixShape<
+    MatrixShape<   //BTBT InstructionShape_<16,16,4>
       ArchMmaOperator::Shape::kM,
       ArchMmaOperator::Shape::kK
     >,
@@ -222,7 +222,7 @@ public:
   CUTLASS_DEVICE
   void operator()(
     FragmentC &D,       //Array<half,128> 128=WrpTil.M(64)*WrpTil.N(64)/32thrds
-    FragmentA const &A, //Array<half,16> 16=WrpTil.M(64) * arch::Mma::Shape.K(4) / 32thrds * 2 //BTBT 这里最后为何乘2,因为不同MMA矩阵或quad矩阵即使同一个thrd同一批数据,都要多取一次??? 见s9593v2#17#18线程A0在MMA0矩阵的quad 0和MMA1矩阵的quad 0虽然取的都是同一批数,但由于与之合作的线程不一样(B0...3或B4...7),故要取两次,但不确定是否这个原因?
+    FragmentA const &A, //Array<half,16> 16=WrpTil.M(64) * arch::Mma::Shape.K(4) / 32thrds * 2 //BTBT 这里最后为何乘2,因为不同MMA矩阵或quad矩阵即使同一个thrd同一批数据,都要多取一次??? 见s9593v2#17#18线程A0在MMA0矩阵的quad 0和MMA1矩阵的quad 0虽然取的都是同一批数,但由于与之合作的线程不一样(B0...3或B4...7),也就是每thread要做4次mma,分别要从A,B各取2次数(见下面的inner_row和inner_col循环),每次取4个half,这里指的是从A取的4*2个half.而由于WrpTil是64,故要取2*(4*2)个half...但不确定是否这个原因?
     FragmentB const &B,  //Array<half,16>
     FragmentC const &C)  {
 
@@ -249,6 +249,14 @@ public:
             int op_col = inner_col + MmaIterations::kColumn * outer_col;
 
             // Column-major serpentine sequence to maximize reuse of A operand.
+            // Serpentine visitation order maximizing reuse of Rb  //BTBT ??? 参考gemm/warp/mma_tensor_op.h在(__CUDA_ARCH__ < 800)时有这样的优化,但不知为何对A有好处?且Rb是啥?
+            // The visitation order is like
+            //      _   
+            //   | | | |
+            //   | | | |
+            //   |_| |_|
+            //
+            // Down Up Down Up
             int inner_row_serp = inner_row;
             int outer_row_serp = outer_row;
             if (op_col & 1) {
@@ -263,7 +271,7 @@ public:
               ptr_D[op_idx],//BTBT s9593v2#15#16#17#18
               ptr_A[op_row],//续上,每个MMA矩阵由16thrd参与,然后又分成4个quad矩阵,每个quad由该MMA中的16thrd中的8thrd交错参与#17,组成MMA的quad也是间隔分布的#15,由m8n8k4计算得到,这就是该quad所涉及的8个thrd都要调用的mma.sync.aligned.m8n8k4的作用#17,所以A,B的类型为<half,4>得到的C,D的类型为<half,8>
               ptr_B[op_col],//类型为Array<half,4>
-              ptr_D[op_idx]);//类型为Array<half,8>
+              ptr_D[op_idx]);//类型为Array<half,8> //BTBT 无论A,B是什么major,D出来都是row major的
 
           }
         }

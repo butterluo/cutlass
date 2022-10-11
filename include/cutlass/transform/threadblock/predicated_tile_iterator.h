@@ -61,7 +61,7 @@ namespace threadblock {
 ///            MaskedTileIteratorConcept
 ///
 /// Regular tile iterator using a precomputed control structure to minimize register liveness
-/// and integer arithmetic.
+/// and integer arithmetic.//BTBT ???
 ///
 /// Layout is assumed to be invariant at the time the precomputed "Params" object is constructed.
 ///
@@ -151,7 +151,7 @@ class PredicatedTileIterator;
 ///            MaskedTileIteratorConcept
 ///
 template <typename Shape_, typename Element_, int AdvanceRank,
-          typename ThreadMap_, int AccessSize, bool Gather>//BTBT bias_relu sm70 ???
+          typename ThreadMap_, int AccessSize, bool Gather>//BTBT bias_relu sm70 < 621
 class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
                              ThreadMap_, AccessSize, Gather> {
  public:
@@ -618,7 +618,7 @@ template <
   typename ThreadMap_,
   int AccessSize,
   bool Gather
->//BTBT bias_relu sm70 ???
+>//BTBT bias_relu sm70 UnderlyingIterator>154
 class PredicatedTileIterator<Shape_, Element_, layout::RowMajor, AdvanceRank, ThreadMap_, AccessSize, Gather> {
 public:
 
@@ -642,7 +642,7 @@ public:
   using Pointer = Element *;
   using NonConstPointer = typename platform::remove_const<Element>::type *;
 
-  using UnderlyingIterator = PredicatedTileIterator<
+  using UnderlyingIterator = PredicatedTileIterator< // >:154
     layout::PitchLinearShape<Shape::kColumn, Shape::kRow>,
     Element,
     layout::PitchLinear,
@@ -708,9 +708,9 @@ public:
     iterator_(
       params.params_,
       pointer,
-      layout::PitchLinearCoord(extent.column(), extent.row()),
+      layout::PitchLinearCoord(extent.column(), extent.row()),  //BTBT A:Mtrx(pblmSzM,K)->Pitch(pblmSzK,M)
       thread_id,
-      layout::PitchLinearCoord(threadblock_offset.column(), threadblock_offset.row()),
+      layout::PitchLinearCoord(threadblock_offset.column(), threadblock_offset.row()),  //BTBT A:Mtrx(blkOffsetM,K)->Pitch(blkOffsetK,M)
       indices
     ) { }
 
