@@ -176,7 +176,7 @@ struct Gemm {
                                    ? 32
                                    : (platform::is_same<typename Epilogue::OutputTileIterator::Layout,
                                                         layout::ColumnMajorInterleaved<64>>::value)
-                                     ? 64~
+                                     ? 64
                                      : Epilogue::OutputTileIterator::kElementsPerAccess;
 
     if (!TensorRef_aligned(ref_A, kAlignmentA)) {
@@ -256,7 +256,7 @@ struct Gemm {
 
     // Broadcast the warp_id computed by lane 0 to ensure dependent code
     // is compiled as warp-uniform.
-    int warp_idx = __shfl_sync(0xffffffff, threadIdx.x / 32, 0);
+    int warp_idx = __shfl_sync(0xffffffff, threadIdx.x / 32, 0);//BTBT ???
     int lane_idx = threadIdx.x % 32;
 
     //

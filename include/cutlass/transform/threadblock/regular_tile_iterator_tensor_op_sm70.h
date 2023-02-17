@@ -70,7 +70,7 @@ template <
   int AdvanceRank,
   typename ThreadMap_,
   int Alignment
->
+>//BTBT bias_relu sm70 <283
 class RegularTileIterator<
   Shape_,
   Element_,
@@ -116,7 +116,7 @@ public:
 private:
 
   /// Element type per access
-  using AccessType = Array<Element, Layout::kElementsPerAccess>;
+  using AccessType = Array<Element, Layout::kElementsPerAccess>; //BTBT Layout::kElementsPerAccess=kAccessSize(128)/kElementSize(16)=8
 
 public:
 
@@ -280,7 +280,7 @@ public:
 /// Satisfies: ForwardTileIteratorConcept |
 ///            ReadableContiguousTileIteratorConcept |
 ///            WriteableContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70 col.row >74
 template <
   typename Shape_,
   typename Element_,
@@ -536,7 +536,7 @@ public:
 /// Satisfies: ForwardTileIteratorConcept |
 ///            ReadableContiguousTileIteratorConcept |
 ///            WriteableContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70 col.row <764
 template <
   typename Shape_,
   typename Element_,
@@ -760,7 +760,7 @@ template <
   int AdvanceRank,
   typename ThreadMap_,
   int Alignment
->
+>//BTBT bias_relu sm70 col.row
 class RegularTileIterator<
   Shape_,
   Element_,

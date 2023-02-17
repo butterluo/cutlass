@@ -81,7 +81,7 @@ template <
     /// Layout of accumulator
     typename LayoutC_,
     /// Operation performed by GEMM
-    typename Operator_>
+    typename Operator_> //BTBT sm70 col.row
 struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
                       layout::ColumnMajor, ElementB_, layout::RowMajor,
                       ElementC_, LayoutC_, arch::OpClassTensorOp, 2, Operator_

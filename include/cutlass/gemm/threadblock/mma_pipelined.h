@@ -210,7 +210,7 @@ public:
 
     ++iterator_A;
     ++iterator_B;
-
+    //从GLB拿到SMEM，让mma从SMEM中通过warp_tile_iterator_A_取数据计算
     this->smem_iterator_A_.store(transform_A(tb_frag_A));//SmemIteratorA<-'regular_tile_iterator_tensor_op_sm70.h#1352并使用了tensor_op_multiplicand_sm70.h#943'<-default_mma_core_sm70.h#434#454
     this->smem_iterator_B_.store(transform_B(tb_frag_B));//BTBT ??? TransformA和B不知道template是调了numeric_conversion.h#666还是#697,如果都是half的话,前者做了多余的类型转换
 
@@ -249,19 +249,19 @@ public:
 
     // Note: The main loop does not support Base::kWarpGemmIterations == 2.
     CUTLASS_GEMM_LOOP
-    for (; gemm_k_iterations > 0; --gemm_k_iterations) {//BlkTil窗口沿PblmSz移动gemm_k_iterations次,每次取BlkTil个元素
+    for (; gemm_k_iterations > 0; --gemm_k_iterations) {//BlkTil窗口沿PblmSz移动gemm_k_iterations次,每次取BlkTil个元素。这是blk循环，相当于blkTil这个窗口沿着k移动，每次blk循环都要做多次下面的wrp内循环
       //
       // Loop over GEMM K dimension
       //
-      //WrpTil窗口沿BlkTil移动kWarpGemmIterations次,每次取WrpTil个元素
+      //WrpTil窗口沿BlkTil移动kWarpGemmIterations次,每次取WrpTil个元素。这是wrp内循环，会涉及整个wrpTil的元素，多个wrpTil会凑成一个blkTil. wrp内循环会基于SMEM中的数据去做，做完了就相当于blkTil向前一步，再做下一步blkTil的wrp内循环
       CUTLASS_PRAGMA_UNROLL
-      for (int warp_mma_k = 0; warp_mma_k < Base::kWarpGemmIterations; ++warp_mma_k) {//BTBT kWarpGemmIterations=shpWrp.K/arch::Mma::Sharp.K=32/4=8=wrpTil/InstrTil
+      for (int warp_mma_k = 0; warp_mma_k < Base::kWarpGemmIterations; ++warp_mma_k) {//BTBT kWarpGemmIterations=wrpTil.K/arch::Mma::Sharp.K=32/4=8,这里的arch::Mma::Sharp不是<8,8,4>而是<16,16,4>,因为cutls用了间隔的mma.sync用法，但模板类间的调用用的是<8,8,4>以反映指令的真实情况
 
         // Load warp-level tiles from shared memory, wrapping to k offset if this is the last group
         // as the case may be.
 
         if (warp_mma_k == Base::kWarpGemmIterations - 1) {
-
+          //在该次blk循环结束前，把上一轮wrp内循环中，从GLB拿到的数据放入SMEM
           // Write fragments to shared memory
           this->smem_iterator_A_.store(transform_A(tb_frag_A));
 
@@ -287,7 +287,7 @@ public:
 
           smem_write_stage_idx ^= 1;
         }
-
+        //warp_tile_iterator_A_在这一轮wrp内循环会从SMEM中获取下一轮wrp内循环时warp_mma计算要用的数据，这就使得smem_iterator_A_能够在该次blk循环结束前把下一次blkTil的数据放入SMEM
         this->warp_tile_iterator_A_.set_kgroup_index((warp_mma_k + 1) % Base::kWarpGemmIterations);
         this->warp_tile_iterator_B_.set_kgroup_index((warp_mma_k + 1) % Base::kWarpGemmIterations);
         
@@ -297,8 +297,8 @@ public:
         ++this->warp_tile_iterator_A_;
         ++this->warp_tile_iterator_B_;
 
-        if (warp_mma_k == 0) {
-
+        if (warp_mma_k == 0) {//BTBT ??? TOREFACTOR iterator_A之类的在gemm_k_iterations==1时是没必要load的,这里是不是要加个判断，否则即使mask置0了，但还是要空load一次，还是因为无论怎样都要移动iterator_A?
+          //在blk循环开始前已经从GLB->SMEM了一次，然后每次blk循环开始获取下一次blk循环要放到SMEM中的blkTil数据(属于该thrd的blkTil的数据)，在从GLB取数的同时，下面的warp_mma会在每轮wrp内循环中同时用warp_tile_iterator_A_获取上次blk循环放入SMEM的blkTil数据进行计算，做指令级别并行
           iterator_A.load(tb_frag_A);
           iterator_B.load(tb_frag_B);
 

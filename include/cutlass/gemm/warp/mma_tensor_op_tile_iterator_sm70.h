@@ -81,7 +81,7 @@ class MmaVoltaTensorOpMultiplicandTileIterator;
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70<689
 template <
     /// Size of the matrix to load (concept: PitchLinearShape)
     typename Shape_,
@@ -686,7 +686,7 @@ public:
 ///
 /// Satisfies:
 ///   ReadableRandomAccessContiguousTileIteratorConcept
-///
+///BTBT bias_relu sm70 col.row WrpItrA
 template <
     /// Size of the matrix to load (concept: MatrixShape)
     typename Shape_,
@@ -751,7 +751,7 @@ class MmaVoltaTensorOpMultiplicandTileIterator<
   // Derived quantities
   //
 
-  /// Fragment object holding a thread's part of a tile
+  /// Fragment object holding a thread's part of a tile //BTBT Shape::kContiguous(wrpTil.M) * InstructionShape::kStrided(mmaShp.K) / kThreads * 2 （cutls的mmaShp由于间隔玩法，所以是<16,16,4>)
   using Fragment = typename Base::Fragment;
 
 private:

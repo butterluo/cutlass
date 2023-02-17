@@ -111,13 +111,13 @@ struct global_load<AccessType,
                    16
                   > {
   CUTLASS_DEVICE
-  global_load(AccessType &D, void const *ptr, bool pred_guard) {
+  global_load(AccessType &D, void const *ptr, bool pred_guard) {//BTBT bias_relu sm70
   uint4 &data = reinterpret_cast<uint4 &>(D);//BTBT uint4是cuda的类型,由4个uint32_t组成,nv的dev论坛上也说了half要转为uint4才能8个组成一个struct去编译成LDG.E.128指令
     asm volatile(
         "{\n"
         "  .reg .pred p;\n"
         "  setp.ne.b32 p, %5, 0;\n"
-        "  mov.b32 %0, %6;\n"                         //这里是置零reg
+        "  mov.b32 %0, %6;\n"                         //这里是令reg置零
         "  mov.b32 %1, %7;\n"
         "  mov.b32 %2, %8;\n"
         "  mov.b32 %3, %9;\n"

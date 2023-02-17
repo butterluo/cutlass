@@ -164,13 +164,13 @@ class MmaBase {
 
     /// Returns a layout object for the A matrix //BTBT RowMajorVoltaTensorOpMultiplicandCrosswise@tensor_op_multiplicand_sm70.h:948 <128,64>
     CUTLASS_DEVICE
-    static typename Operator::LayoutA LayoutA() {//return RowMajorVoltaTensorOpMultiplicandCrosswise.strid=ShapeA.row=128=blkTilM without pad
+    static typename Operator::LayoutA LayoutA() {//return sm70 r.r RowMajorVoltaTensorOpMultiplicandCrosswise.strid=ShapeA.row=128=blkTilM without pad,  如果是 c.r LayoutA 则是 ColumnMajorVoltaTensorOpMultiplicandCongruous
       return Operator::LayoutA::packed({ShapeA::kRow, ShapeA::kColumn});
     }
 
     /// Returns a layout object for the B matrix
     CUTLASS_HOST_DEVICE
-    static typename Operator::LayoutB LayoutB() {
+    static typename Operator::LayoutB LayoutB() {//return sm70 r.r RowMajorVoltaTensorOpMultiplicandBCongruous
       return Operator::LayoutB::packed({ShapeB::kRow, ShapeB::kColumn});
     }
 

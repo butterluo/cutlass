@@ -151,7 +151,7 @@ class PredicatedTileIterator;
 ///            MaskedTileIteratorConcept
 ///
 template <typename Shape_, typename Element_, int AdvanceRank,
-          typename ThreadMap_, int AccessSize, bool Gather>//BTBT bias_relu sm70 < 621
+          typename ThreadMap_, int AccessSize, bool Gather>//BTBT bias_relu sm70 < 621&408
 class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
                              ThreadMap_, AccessSize, Gather> {
  public:
@@ -176,7 +176,7 @@ class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
   using Pointer = Element *;
   using NonConstPointer = typename platform::remove_const<Element>::type *;
   //BTBT bias_relu AccessSize来自default_gemm_configuration#168,为128/bitsOf(half)=8
-  /// Type used for internal memory accesses BTBT AlignedArray@array.h#551. Alignment=8*16/8=16Byte
+  /// Type used for internal memory accesses BTBT AlignedArray@array.h:551. Alignment=8*16/8=16Byte
   using AccessType = AlignedArray<Element, AccessSize, (AccessSize * sizeof_bits<Element>::value / 8)>;
 
   /// Underlying iterator to compute the addresses
@@ -322,24 +322,24 @@ class PredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
     AccessType *frag_ptr = reinterpret_cast<AccessType *>(&frag);
 
     CUTLASS_PRAGMA_UNROLL
-    for (int s = 0; s < ThreadMap::Iterations::kStrided; ++s) {
+    for (int s = 0; s < ThreadMap::Iterations::kStrided; ++s) {//BTBT 该thrd要沿strid维度随着wrp做这么多次循环
       CUTLASS_PRAGMA_UNROLL
-      for (int c = 0; c < ThreadMap::Iterations::kContiguous; ++c) {
-
+      for (int c = 0; c < ThreadMap::Iterations::kContiguous; ++c) {//BTBT 该thrd要沿contiguous维度随着wrp做这么多次循环
+        //BTBT ??? TOREFACTOR 如果strid和contiguous的总循环次数过多，会否造成reg不够用而spill，循环展开后编译器是否能做到reg复用?
         CUTLASS_PRAGMA_UNROLL
         for (int v = 0; v < kAccessesPerVector; ++v) {
 
           int idx = v + kAccessesPerVector * (c + s * ThreadMap::Iterations::kContiguous);
           
-          address_iterator_.set_iteration_index(idx);
-          char const *byte_ptr = reinterpret_cast<char const *>(address_iterator_.get()) + byte_offset;
+          address_iterator_.set_iteration_index(idx);//BTBT TOREFACTOR set_iteration_index里就是把这里的v,c,s给复原回来再赋值给相应的私变量，是否可以多一个函数直接做赋值就好了，没必要又计算一遍，毕竟即使inline展开，复杂的计算逻辑也导致编译器无法消除多余的中间变量
+          char const *byte_ptr = reinterpret_cast<char const *>(address_iterator_.get()) + byte_offset;//把物理指针移动到idx情况下该thrd所要取数的起点
 
           AccessType const *access_ptr = reinterpret_cast<AccessType const *>(byte_ptr);
 
-          cutlass::arch::global_load<AccessType,
+          cutlass::arch::global_load<AccessType,                    //BTBT 这里取数是以AcesTyp为单位的，每次取AcesTyp.N个数据
                                      sizeof(AccessType)
                                     >(
-              frag_ptr[idx], access_ptr, address_iterator_.valid());
+              frag_ptr[idx], access_ptr, address_iterator_.valid());//BTBT valid是结合predicats(或叫masks)判断该次取数是否超出pblmSz，若是则不执行取数指令
 
           ++address_iterator_;
         }
@@ -405,7 +405,7 @@ template <
   typename ThreadMap_,
   int AccessSize,
   bool Gather
->
+>//BTBT bias_relu sm70 col.row UnderlyingIterator>154
 class PredicatedTileIterator<Shape_, Element_, layout::ColumnMajor, AdvanceRank, ThreadMap_, AccessSize, Gather> {
 public:
 

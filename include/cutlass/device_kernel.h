@@ -50,7 +50,7 @@ void Kernel(typename Operator::Params params) {
 
   // Declare pointer to dynamic shared memory.
   typename Operator::SharedStorage *shared_storage =
-      reinterpret_cast<typename Operator::SharedStorage *>(SharedStorageBase);
+      reinterpret_cast<typename Operator::SharedStorage *>(SharedStorageBase);//BTBT 还可以这么暴力的转换 ??? 是在这里才按照实际SharedStorage类的大小来分配smem么?
 
   Operator op;
 

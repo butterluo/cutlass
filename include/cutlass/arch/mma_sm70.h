@@ -556,7 +556,7 @@ struct Mma<
   layout::RowMajor,
   float,
   layout::RowMajor,
-  OpMultiplyAdd> {//BTBT bias_relu sm70 ???
+  OpMultiplyAdd> {//BTBT bias_relu sm70 cuda-gdb 说是这里
 
   using Shape = gemm::GemmShape<8, 8, 4>;
 

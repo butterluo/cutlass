@@ -65,7 +65,7 @@ namespace threadblock {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/// PredicatedTileAccessIteratorPredicates
+/// PredicatedTileAccessIteratorPredicates //BTBT 该类只负责predicates的置0或1
 ///BTBT bias_relu sm70 < :320
 template <typename Shape_, typename Element_, typename Layout_, int AdvanceRank,
           typename ThreadMap_, typename AccessType_>
@@ -74,7 +74,7 @@ class PredicatedTileAccessIteratorPredicates {
   using Shape = Shape_;//BlkTil
   using Element = Element_;
   using Layout = Layout_;
-  static int const kAdvanceRank = AdvanceRank;//BTBT 在predicated_tile_iterator.h:649做过0/1互换,所以此时
+  static int const kAdvanceRank = AdvanceRank;//BTBT 在predicated_tile_iterator.h:649做过0/1互换,所以此时A:0,B:1
   using ThreadMap = ThreadMap_;
   using AccessType = AccessType_;//BTBT bias_relu 见predicated_tile_iterator#180
 
@@ -82,7 +82,7 @@ class PredicatedTileAccessIteratorPredicates {
   using LongIndex = typename Layout::LongIndex;
 
   using TensorCoord = typename Layout::TensorCoord;
-  //1=8/8 以AccessType取glb中的元素时,要获取够kElementsPerAccess个元素所需要的次数. 一般kElementsPerAccess和AccessType::kElements是相同的,因为都是为了凑够LDG128指令所需bits
+  /* 1=8/8 以AccessType取glb中的元素时,要获取够kElementsPerAccess个元素所需要的次数. 一般kElementsPerAccess和AccessType::kElements是相同的,因为都是为了凑够LDG128指令所需bits */
   static int const kAccessesPerVector = ThreadMap::kElementsPerAccess / AccessType::kElements;
 
   static_assert(!(ThreadMap::kElementsPerAccess % AccessType::kElements),
@@ -142,7 +142,7 @@ class PredicatedTileAccessIteratorPredicates {
     }
 
     CUTLASS_PRAGMA_UNROLL
-    for (int access_idx = 0; access_idx < ThreadMap::Iterations::kCount * kAccessesPerVector; ++access_idx) {//该thrd某次小access是否要被mask掉(guard为false时)
+    for (int access_idx = 0; access_idx < ThreadMap::Iterations::kCount * kAccessesPerVector; ++access_idx) {//该thrd某次小access(指对AcesTyp数据的获取)是否要被mask掉(guard为false时)
 
       int s = access_idx / (ThreadMap::Iterations::kContiguous * kAccessesPerVector);
       
@@ -186,7 +186,7 @@ class PredicatedTileAccessIteratorPredicates {
   void set_predicates(int thread_id, TensorCoord const &threadblock_offset) {  //BTBT A:Pitch(blkOffsetK,M)
 
     TensorCoord residue_extent;
-    if (kAdvanceRank) {//BTBT kAdvanceRank指向前迭代移动的维度,1是pitch的strid维度,0是pitch的contiguous维度. A:1沿
+    if (kAdvanceRank) {//BTBT kAdvanceRank指向前迭代移动的维度,1是pitch的strid维度,0是pitch的contiguous维度.   //B:1沿k=strid方向移动
 
       typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.strided()) % Shape::kStrided;
       if (!residue_size) {
@@ -198,7 +198,7 @@ class PredicatedTileAccessIteratorPredicates {
         extent_.contiguous(), 
         min(threadblock_offset.strided() + residue_size, extent_.strided())
       );
-    } else {
+    } else {// A:0沿k=contiguous移动
       //该blk负责的片区在contiguous维度上与BlkTil.Contiguous的整数倍相比多余出了多少元素
       typename TensorCoord::Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.contiguous()) % Shape::kContiguous;
       if (!residue_size) {
@@ -439,17 +439,17 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
       : params_(params),
 	pointer_(reinterpret_cast<BytePointer>(
             const_cast<NonConstPointer>(pointer))),
-	the_predicates(extent),
+	the_predicates(extent),//extent is pblmSz
         is_residue_tile_(true),//BTBT 指示是不是不能整除的那一块tile,刚开始时先处理不能整除的多余tile
         indices_(indices) {
 
     the_predicates.set_predicates(thread_id, threadblock_offset);
           
-    // update internal pointers //BTBT A:stride_=A.K
+    // update internal pointers //BTBT 如果RowMajor则是A.K，否则A.M
     Layout layout(params_.stride_);
 
     if (!Gather) {
-      add_pointer_offset(layout(the_predicates.thread_offset_));//BTBT 将pointer_设为该thrd在整个A/B中的起始位置(字节为单位)
+      add_pointer_offset(layout(the_predicates.thread_offset_));//BTBT 将pointer_设为该thrd在整个A/B中的起始位置(elem为单位)
     } else {
       gather_offset_strided = the_predicates.thread_offset_.strided();
       add_pointer_offset(layout(make_Coord(the_predicates.thread_offset_.contiguous(), 0)));
@@ -498,7 +498,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
         add_pointer_offset(layout(the_predicates.residue_offset_));
 
         if (kAdvanceRank) {
-          pointer_ += params_.inc_advance_ * LongIndex(tile_offset.strided() - 1);
+          pointer_ += params_.inc_advance_ * LongIndex(tile_offset.strided() - 1);//BTBT 由于上一行add_pointer_offset相当于走了一步，所以这里要沿advance维度少走一步
           pointer_ += Shape::kContiguous * tile_offset.contiguous();
         } else {
           pointer_ += params_.inc_advance_ * LongIndex(tile_offset.contiguous() - 1);
@@ -553,7 +553,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
     }
 
     return reinterpret_cast<AccessType *>(
-        pointer_ + 
+        pointer_ + //这个pointer是char*,以byte为单位移动的.下面加上的是每个wrp移动一步时(同时考虑contiguous和strid维度)该thrd在物理数据上的指针索要移动的(步长+iteration_vector_)。
         the_predicates.iteration_contiguous_ * (ThreadMap::Delta::kContiguous * sizeof_bits<Element>::value) / 8) + the_predicates.iteration_vector_;
   }
 
@@ -569,7 +569,7 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
     }
 
     the_predicates.iteration_vector_ = 0;
-    ++the_predicates.iteration_contiguous_;
+    ++the_predicates.iteration_contiguous_;//BTBT 沿contiguous维度前进，直到超过ThreadMap::Iterations::kContiguous次数,但这并非是物理取数的指针，物理指针是在get()内基于iteration_contiguous_走了一个Delta::kContiguous的步长
 
     if (the_predicates.iteration_contiguous_ < ThreadMap::Iterations::kContiguous) {
       return *this;
@@ -591,14 +591,14 @@ class PredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear,
     // Enter here only if (iteration_stride_ == ThreadMap::Iteration::kStrided)
     // which means we enter the next tile.
     the_predicates.iteration_strided_ = 0;
-
+    //BTBT 走到这里contiguous和strid维度上的迭代都走完了，所以iteration_vector_和iteration_strided_都已被置0
     if (!Gather) {
-      // advance to next tile
+      // advance to next tile//这个blkTil的所有迭代走完后，pointer_就从指向本blkTil的最后一个迭代起点移动到指向下一个blkTil的第一个迭代的起点
       pointer_ += params_.inc_next_;
   
       // now return to start tile - if the iterator is subsequently advanced, this
       // subtraction as well as the subsequent integer addition are both elided by
-      // the compiler.
+      // the compiler.//BTBT ??? TOREFACTOR 从下一个blkTil的起点又回到旧blkTil的起点，因为后续调add_tile_offset时会再调一次+=inc_advance_...什么鬼
       pointer_ -= params_.inc_advance_;
     }
 

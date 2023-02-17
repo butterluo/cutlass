@@ -236,7 +236,7 @@ struct PitchLinearWarpRakedThreadMap {
   struct Detail {
 
     /// Fixed arrangement of threads within a warp (units of threads).
-    using WarpThreadArrangement = WarpThreadArrangement_;//BTBT bias_relu A硬编码为PitchLinearShape<4, 8>,B则为<8,4> BTBT ??? 这个表示warp内的thread排布?
+    using WarpThreadArrangement = WarpThreadArrangement_;//BTBT bias_relu A硬编码为PitchLinearShape<4(K), 8(M)>,B则为<8(N),4(K)> BTBT ??? 这个表示warp内的thread排布?
 
     /// Number of threads per warp
     static int const kWarpSize = WarpThreadArrangement::kCount;//BTBT bias_relu 4*8=32
@@ -250,7 +250,7 @@ struct PitchLinearWarpRakedThreadMap {
 
     /// Compute the 'shape' of the overall tile in units of vectors
     using ShapeInAccesses = layout::PitchLinearShape<//BTBT 已知每次访问能获取kElementsPerAccess个数,获取一个blkTile所需要的数要多少次访问,每次访问为一个vector,每次vector取kElementsPerAccess个元素
-      Shape::kContiguous / kElementsPerAccess,//A:blkTil.K/8, B:blkTil.N/8
+      Shape::kContiguous / kElementsPerAccess,//A:blkTil.K/8, B:blkTil.N/8  因为我们是在contiguous维度才取数据的，所以这里才除以elmPerAces
       Shape::kStrided//A:shpThrdBlk.M, B:shpThrdBlk.K
     >;
 
@@ -287,7 +287,7 @@ struct PitchLinearWarpRakedThreadMap {
   };
 
   ///< Iterations along each dimension (concept: PitchLinearShape)//BTBT 已知每wrp只acess一次的情况下需要WarpAccessIterations个wrp才能完成blkTile说需的acess数,在contiguous方向有kWarpsContiguous个wrp,stride方向有kWarpsStrided的wrp排布下,每个wrp(也就是每个wrp中的每个thrd)需要多少次迭代才能访问完WarpAccessIterations次
-  using Iterations = layout::PitchLinearShape<
+  using Iterations = layout::PitchLinearShape<//BTBT ??? 该threadMap中的各种排布和迭代次数都是基于elmPerAces计算出来的，怎么跟wrpTil一点关系都没有?
     Detail::WarpAccessIterations::kContiguous / Detail::kWarpsContiguous, //A:1/1=1; B:2/1=2
     Detail::WarpAccessIterations::kStrided / Detail::kWarpsStrided  //A:16/4=4: B:8/4=2. 也就是说对于A
   >;
@@ -296,7 +296,7 @@ struct PitchLinearWarpRakedThreadMap {
     "Number of iterations must be non-zero");
 
   ///< Delta betweeen accesses (units of elements, concept: PitchLinearShape)
-  using Delta = layout::PitchLinearShape<
+  using Delta = layout::PitchLinearShape<//BTBT 一个wrp每次访问，会在contiguous和strid维度分别访问多少个elm
     Detail::WarpThreadArrangement::kContiguous * kElementsPerAccess,
     Detail::WarpThreadArrangement::kStrided
   >;
