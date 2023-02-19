@@ -548,15 +548,15 @@ struct Mma<
 /// Matrix multiply-add operation: F32 = F16 * F16 + F32
 template <>
 struct Mma<
-  gemm::GemmShape<8, 8, 4>,
-  8,
-  half_t,
-  layout::RowMajor,
+  gemm::GemmShape<8, 8, 4>,/// Size of the matrix product (concept: GemmShape)
+  8,/// Number of threads participating
+  half_t,/// Data type of A elements
+  layout::RowMajor,/// Layout of A matrix (concept: MatrixLayout)
   half_t,
   layout::RowMajor,
   float,
   layout::RowMajor,
-  OpMultiplyAdd> {//BTBT bias_relu sm70 cuda-gdb 说是这里
+  OpMultiplyAdd /*/// Inner product operator*/> {//BTBT bias_relu sm70 cuda-gdb 说是这里
 
   using Shape = gemm::GemmShape<8, 8, 4>;
 
@@ -635,8 +635,8 @@ template <
   typename Operator
 >//BTBT bias_relu sm70 ???
 struct Mma<
-  gemm::GemmShape<16, 16, 4>,
-  32,
+  gemm::GemmShape<16, 16, 4>,/// Size of the matrix product (concept: GemmShape)
+  32,/// Number of threads participating
   half_t,
   LayoutA,
   half_t,

@@ -48,11 +48,11 @@
 
 // The code section below describes datatype for input, output matrices and computation between
 // elements in input matrices.
-using ElementAccumulator = float;                   // <- data type of accumulator
+using ElementAccumulator = float;                   // <- data type of accumulator  //BTBT ??? 这里若改成cutlass::half_t,下面的reference会出问题
 using ElementComputeEpilogue = ElementAccumulator;  // <- data type of epilogue operations
 using ElementInputA = cutlass::half_t;              // <- data type of elements in input matrix A
 using ElementInputB = cutlass::half_t;              // <- data type of elements in input matrix B
-using ElementOutput = cutlass::half_t;  //float;                        // <- data type of elements in output matrix D
+using ElementOutput = cutlass::half_t;  //float;    //BTBT                    // <- data type of elements in output matrix D
 
 // The code section below describes matrix layout of input and output matrices.
 // Column Major for Matrix A, B and C.

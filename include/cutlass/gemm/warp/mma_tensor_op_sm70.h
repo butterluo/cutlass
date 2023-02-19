@@ -82,7 +82,7 @@ template <
 >
 class MmaVoltaTensorOp {
 public:
-  /// Shape of warp-level matrix operation (concept: GemmShape) //BTBT WrpTil
+  /// Shape of warp-level matrix operation (concept: GemmShape) //BTBT 在 default_mma_core_sm70.h:400中设为WrpTil,即 gemm_bias_relu.cu:84 的 ShapeMMAWarp<64,64,32>
   using Shape = Shape_;
 
   /// Data type of multiplicand A
@@ -119,7 +119,7 @@ public:
   using MathOperator = typename ArchMmaOperator::Operator;
   
   /// Underlying instruction shape
-  using InstructionShape = typename ArchMmaOperator::Shape;
+  using InstructionShape = typename ArchMmaOperator::Shape;//BTBT default_mma_core_sm70.h:400中设为<16,16,4>
 
   /// Complex transform on A operand
   static ComplexTransform const kTransformA = ComplexTransform::kNone;
@@ -130,7 +130,7 @@ public:
   /// Number of threads participating in warp-level matrix product
   static int const kThreadCount = 32;
 
-  /// interleaved 32x32 tiles
+  /// interleaved 32x32 tiles <32,32,4>
   using InterleavedTileShape = GemmShape<32, 32, 4>;
 
   static_assert(!(Shape::kM % InterleavedTileShape::kM) &&
@@ -191,14 +191,18 @@ private:
     "Shape of warp-level Mma must be divisible by operator shape.");
 
   /// Number of mma operations performed
+  //BTBT warp做一次tc的mma(m8n8k4)能处理的sharp是<16,16,4>(即ArchMmaOperator::Shape),若要覆盖InterleavedTileShape定义的<32,32,4>在M,N上各迭代2次.即共4次,参考s9593v2#18的MMA0-MMA3,但排布不一定如此
   using MmaIterations = MatrixShape<
-    InterleavedTileShape::kM / ArchMmaOperator::Shape::kM, //BTBT 32/ArchMmaShp.M=2
-    InterleavedTileShape::kN / ArchMmaOperator::Shape::kN  //BTBT 32/ArchMmaShp.N=2
+    InterleavedTileShape::kM / ArchMmaOperator::Shape::kM, //BTBT 32/ArchMmaShp.M(16)=2
+    InterleavedTileShape::kN / ArchMmaOperator::Shape::kN  //BTBT 32/ArchMmaShp.N(16)=2
   >;
+  //BTBT 上面MmaIterations要做4次mma以覆盖本类定义的InterleavedTileShape,而这个TileIterations定义的是要做多少次MmaIterations才能覆盖 gemm_bias_relu.cu:84 定义的 ShapeMMAWarp<64,64,32>(即WrpTil,一个wrp要处理的元素数量)
+  //通过下面的计算,要覆盖Shape(ShapeMMAWarp)定义的<64,64,32>在M,N上各迭代2次.即共4次MmaIterations.而在K上迭代的次数参考调用本类的外层循环:mma_pipelined.h:258
   using TileIterations = MatrixShape<
-    Shape::kM / InterleavedTileShape::kM, //BTBT row:WrpTilM/32=2
-    Shape::kN / InterleavedTileShape::kN  //BTBT col:WrpTilN/32=2
+    Shape::kM / InterleavedTileShape::kM, //BTBT row:WrpTilM(64)/32=2
+    Shape::kN / InterleavedTileShape::kN  //BTBT col:WrpTilN(64)/32=2
   >;
+  //综合MmaIterations和TileIterations,共要做4*4=16次wrp的mma(m8n8k4),而operator()中的确也是做了16次循环即16次mma.
 
   // Whether matrix B is reordered
   bool reorder_B_;
@@ -235,7 +239,7 @@ public:
     MmaOperandA const *ptr_A = reinterpret_cast<MmaOperandA const *>(&A);
     MmaOperandB const *ptr_B = reinterpret_cast<MmaOperandB const *>(&B);
     MmaOperandC *ptr_D = reinterpret_cast<MmaOperandC *>(&D);
-
+    //BTBT ??? 为何如此循环嵌套,复兴循环优化?这里的MMA及其QP的排布有点难懂,主要是中间隔了个share mem,不知道Fragment中的元素具体对应glb mem中的哪个元素?
     CUTLASS_PRAGMA_UNROLL
     for (int outer_col = 0; outer_col < TileIterations::kColumn; ++outer_col) {//BTBT WrpTil.N/InterleavedTileShape.N(32) 见s9593v2#18,一个tc操作涉及整个wrp共32thrd,一个wrp计算m32n32k4
       CUTLASS_PRAGMA_UNROLL
@@ -259,9 +263,9 @@ public:
             // Down Up Down Up
             int inner_row_serp = inner_row;
             int outer_row_serp = outer_row;
-            if (op_col & 1) {
-              inner_row_serp = MmaIterations::kRow - inner_row - 1;
-              outer_row_serp = TileIterations::kRow - outer_row - 1;
+            if (op_col & 1) {//模2,正如上面注释'Down Up Down Up'所示,当op_col偶数,op_row的坐标是从上往下;当op_col奇数,由于这里把坐标反转了一下,所以op_row坐标是从下往上的.
+              inner_row_serp = MmaIterations::kRow - inner_row - 1; //inner_row_serp=inner_row=0?1:0
+              outer_row_serp = TileIterations::kRow - outer_row - 1;//outer_row_serp=outer_row=0?1:0
             }
             int op_row = inner_row_serp + MmaIterations::kRow * outer_row_serp;
             int op_idx = inner_row_serp + MmaIterations::kRow * 
@@ -269,7 +273,7 @@ public:
                           (outer_row_serp + TileIterations::kRow * outer_col));
             mma(
               ptr_D[op_idx],//BTBT s9593v2#15#16#17#18
-              ptr_A[op_row],//续上,每个MMA矩阵由16thrd参与,然后又分成4个quad矩阵,每个quad由该MMA中的16thrd中的8thrd交错参与#17,组成MMA的quad也是间隔分布的#15,由m8n8k4计算得到,这就是该quad所涉及的8个thrd都要调用的mma.sync.aligned.m8n8k4的作用#17,所以A,B的类型为<half,4>得到的C,D的类型为<half,8>
+              ptr_A[op_row],//续上,每个MMA矩阵由一个wrp的32thrd参与,然后又分成4个quad矩阵,每个quad(QP)由8thrd交错参与#17,组成MMA的quad可以是紧密排列也可以间隔排列#15,每个quad(QP)由m8n8k4计算得到,这就是该quad所涉及的8个thrd都要调用的mma.sync.aligned.m8n8k4的作用#17,所以A,B的类型为<half,4>得到的C,D的类型为<half,8>
               ptr_B[op_col],//类型为Array<half,4>
               ptr_D[op_idx]);//类型为Array<half,8> //BTBT 无论A,B是什么major,D出来都是row major的
 

@@ -247,7 +247,8 @@ public:
     // Mainloop
     //
 
-    // Note: The main loop does not support Base::kWarpGemmIterations == 2.
+    // Note: The main loop does not support Base::kWarpGemmIterations == 2. 
+    //BTBT 这个循环称为wrp循环,共gemm_k_iterations次迭代,每次迭代wrp的每个thrd把数据从SMEM拿到REG并调mma.sync做计算
     CUTLASS_GEMM_LOOP
     for (; gemm_k_iterations > 0; --gemm_k_iterations) {//BlkTil窗口沿PblmSz移动gemm_k_iterations次,每次取BlkTil个元素。这是blk循环，相当于blkTil这个窗口沿着k移动，每次blk循环都要做多次下面的wrp内循环
       //
@@ -255,13 +256,13 @@ public:
       //
       //WrpTil窗口沿BlkTil移动kWarpGemmIterations次,每次取WrpTil个元素。这是wrp内循环，会涉及整个wrpTil的元素，多个wrpTil会凑成一个blkTil. wrp内循环会基于SMEM中的数据去做，做完了就相当于blkTil向前一步，再做下一步blkTil的wrp内循环
       CUTLASS_PRAGMA_UNROLL
-      for (int warp_mma_k = 0; warp_mma_k < Base::kWarpGemmIterations; ++warp_mma_k) {//BTBT kWarpGemmIterations=wrpTil.K/arch::Mma::Sharp.K=32/4=8,这里的arch::Mma::Sharp不是<8,8,4>而是<16,16,4>,因为cutls用了间隔的mma.sync用法，但模板类间的调用用的是<8,8,4>以反映指令的真实情况
+      for (int warp_mma_k = 0; warp_mma_k < Base::kWarpGemmIterations; ++warp_mma_k) {//BTBT kWarpGemmIterations=wrpTil.K/arch::Mma::Sharp.K=32/4=8.这里的arch::Mma::Sharp不是<8,8,4>而是<16,16,4>,前者指8thrd做mma.m8n8k4的shape,后者是一个wrp内32thrd可以同时做4个mma.m8n8k4的shape,而一般都是一个wrp内4组8个thrd同时做的,只是排布可以变化而已.
 
         // Load warp-level tiles from shared memory, wrapping to k offset if this is the last group
         // as the case may be.
 
         if (warp_mma_k == Base::kWarpGemmIterations - 1) {
-          //在该次blk循环结束前，把上一轮wrp内循环中，从GLB拿到的数据放入SMEM
+          //在该次wrp迭代结束前，把在做上一轮wrp迭代的同时从GLB拿到REG的数据放入SMEM
           // Write fragments to shared memory
           this->smem_iterator_A_.store(transform_A(tb_frag_A));
 
@@ -271,13 +272,15 @@ public:
           
           ++this->smem_iterator_A_;
           ++this->smem_iterator_B_;
-
           // Add negative offsets to return iterators to the 'start' of the circular buffer in shared memory
-          if (smem_write_stage_idx == 1) {//BTBT smem在一个kWarpGemmIterations内是在一个stage的pointer范围内操作,这里会先把两个stage逐个store上glb暂存到reg的数据,然后再把stage的指针指向stage 0再逐个填充stage,就是个环状缓存
-            this->smem_iterator_A_.add_tile_offset({0, -Base::kStages});//因此可以推断,stage 0和1的数据片区是连续的,不重置的话smem_iterator_A_一直往前填充以及warp_tile_iterator_A_一直往前取数就可以从stage 0 到stage 1
+          //SMEM分连续的甲乙两区,所有wrp循环开始前会写一次甲区以初始化数据,然后每次wrp循环结束的前一次迭代会写上一次写时没有写过的另一个区.
+            //当stage_idx=1时,表示上一轮写SMEM的甲区,现在乙区是刚写的数据,smem_iterator_A_的写指针指向了乙区末端,因为刚写了一轮数据,所以这里要把写指针重置到甲区首端,以便下轮从甲区开始写;而warp_tile_iterator_A_的读指针指向甲区末端,因为刚做了一轮wrp循环,所以读指针不用重置就可以继续使用刚写入SMEM乙区的内容.
+            //当stage_idx=0时,表示上一轮写SMEM的乙区,现在甲区是刚写的数据,smem_iterator_A_的写指针指向了甲区末端,因为刚写了一轮数据,所以不必重置写指针下轮也可以从乙区开始写;而warp_tile_iterator_A_的读指针指向乙区末端,因为刚做了一轮wrp循环,所以读指针要重置才可以使用刚写入SMEM甲区的内容.
+          if (smem_write_stage_idx == 1) {
+            this->smem_iterator_A_.add_tile_offset({0, -Base::kStages});
             this->smem_iterator_B_.add_tile_offset({-Base::kStages, 0});
           }
-          else {//可部分参考上面if块的结论
+          else {
             this->warp_tile_iterator_A_.add_tile_offset(
                 {0, -Base::kStages * Policy::kPartitionsK * Base::kWarpGemmIterations});
             this->warp_tile_iterator_B_.add_tile_offset(
@@ -287,18 +290,18 @@ public:
 
           smem_write_stage_idx ^= 1;
         }
-        //warp_tile_iterator_A_在这一轮wrp内循环会从SMEM中获取下一轮wrp内循环时warp_mma计算要用的数据，这就使得smem_iterator_A_能够在该次blk循环结束前把下一次blkTil的数据放入SMEM
+        //warp_tile_iterator_A_在这一轮wrp迭代内会从SMEM中获取下一轮wrp迭代中mma计算要用的数据,这就使得smem_iterator_A_能够在该次blk循环结束前把下一次blkTil的数据放入SMEM ??? 这是指REG的双buf甲乙区么,又好像不是,更像是REG有kWarpGemmIterations个区,这次迭代从SMEM加载数据到下次迭代要用的区(注意,在整个循环开始前已经加载过一次到REG以初始化数据)
         this->warp_tile_iterator_A_.set_kgroup_index((warp_mma_k + 1) % Base::kWarpGemmIterations);
         this->warp_tile_iterator_B_.set_kgroup_index((warp_mma_k + 1) % Base::kWarpGemmIterations);
         
-        this->warp_tile_iterator_A_.load(warp_frag_A[(warp_mma_k + 1) % 2]);//BTBT 写入双buff的warp_frag_A另一个区(写区)
+        this->warp_tile_iterator_A_.load(warp_frag_A[(warp_mma_k + 1) % 2]);//BTBT 写入双buff的warp_frag_A另一个区(写区) ??? 这是指REG的双buf甲乙区么,不大像
         this->warp_tile_iterator_B_.load(warp_frag_B[(warp_mma_k + 1) % 2]);
 
         ++this->warp_tile_iterator_A_;
         ++this->warp_tile_iterator_B_;
 
         if (warp_mma_k == 0) {//BTBT ??? TOREFACTOR iterator_A之类的在gemm_k_iterations==1时是没必要load的,这里是不是要加个判断，否则即使mask置0了，但还是要空load一次，还是因为无论怎样都要移动iterator_A?
-          //在blk循环开始前已经从GLB->SMEM了一次，然后每次blk循环开始获取下一次blk循环要放到SMEM中的blkTil数据(属于该thrd的blkTil的数据)，在从GLB取数的同时，下面的warp_mma会在每轮wrp内循环中同时用warp_tile_iterator_A_获取上次blk循环放入SMEM的blkTil数据进行计算，做指令级别并行
+          //在blk循环开始前已经从GLB->SMEM了一次，然后每次blk循环开始获取下一次blk循环要放到SMEM中的blkTil数据(属于该thrd的blkTil的数据)，在从GLB取数的同时，下面的warp_mma会在每轮wrp内循环中同时用warp_tile_iterator_A_获取上次blk循环放入SMEM的blkTil数据进行计算，做指令级别并行//??? 从GLB加载到REG?如果是A100就不用先加载到REG再到SMEM了?但也未必,因为GLB,SMEM的排布不一样
           iterator_A.load(tb_frag_A);
           iterator_B.load(tb_frag_B);
 

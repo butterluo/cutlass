@@ -369,6 +369,8 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
+/// Template defininng default matrix multiply operators inferred from threadblock tile size,
+/// global memory data layout, and target math instruction.
 /// Partial specialization:
 ///
 ///   A: row-major
@@ -390,14 +392,14 @@ template <
     typename ElementC_,
     /// Layout of accumulator
     typename LayoutC_,
-    /// Operation performed by GEMM
+    /// Operation performed by GEMM /// Indicates type of math operator (arch::OpClassSimt or arch::OpClassTensorOp)
     typename Operator_>//BTBT bias_relu sm70 ???
 struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
                       layout::RowMajor, ElementB_, layout::RowMajor, ElementC_,
                       LayoutC_, arch::OpClassTensorOp, 2, Operator_
                       > {
-  using Shape = Shape_;
-  using WarpShape = WarpShape_;
+  using Shape = Shape_;           /// Shape of threadblock-scoped matrix multiply operator (concept: GemmShape)
+  using WarpShape = WarpShape_;   /// Shape of warp-level matrix multiply operator (concept: GemmShape)
   using InstructionShape = GemmShape<8, 8, 4>;
   using ElementA = ElementA_;
   using LayoutA = layout::RowMajor;
@@ -407,7 +409,7 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
   using LayoutC = LayoutC_;
   using OperatorClass = arch::OpClassTensorOp;
 
-  /// Default Operator
+  /// Default Operator//BTBT 来自gemm_bias_relu.cu的'MMAOp = cutlass::arch::OpClassTensorOp'
   using Operator = Operator_;
 
   /// Number of warps present
@@ -489,19 +491,19 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
   // Define the warp-level tensor op //BTBT warp/mma_tensor_op_policy.h
   using Policy = cutlass::gemm::warp::MmaTensorOpPolicy<
     cutlass::arch::Mma<//BTBT mma_sm70.h:630
-      cutlass::gemm::GemmShape<16, 16, 4>,
-      32,
+      cutlass::gemm::GemmShape<16, 16, 4>,   /// Size of the matrix product (concept: GemmShape)
+      32,                                    /// Number of threads participating
       ElementA,
       LayoutA,
       ElementB,
       LayoutB,
       ElementC,
       cutlass::layout::RowMajor,
-      cutlass::arch::OpMultiplyAdd
-    >,
-    cutlass::MatrixShape<1, 1>
+      cutlass::arch::OpMultiplyAdd          /// Inner product operator /// Tag indicating the operation implied by MMA.
+    >,                        ///< hardware instruction(s) performing TensorOp (concept: arch::Mma)
+    cutlass::MatrixShape<1, 1>///< distance between operations (concept: MatrixShape)
   >;
-  //BTBT warp/mma_tensor_op_sm70.h
+  //BTBT warp/mma_tensor_op_sm70.h 里面定义了读 share mem 的 iterator
   using MmaTensorOp = cutlass::gemm::warp::MmaVoltaTensorOp<
     WarpShape,
     ElementA,
@@ -515,10 +517,10 @@ struct DefaultMmaCore<Shape_, WarpShape_, GemmShape<8, 8, 4>, ElementA_,
 
   /// Policy used to define MmaPipelined //BTBT threadblock/mma_base.h
   using MmaPolicy = MmaPolicy<
-    MmaTensorOp,
-    MatrixShape<0, 0>,
-    MatrixShape<0, 0>,
-    WarpCount::kK
+    MmaTensorOp,/// Warp-level GEMM operator (concept: gemm::warp::Mma)
+    MatrixShape<0, 0>,/// Padding used for A operand in shared memory (concept: MatrixShape)
+    MatrixShape<0, 0>,/// Padding used for B operand in shared memory (concept: MatrixShape)
+    WarpCount::kK/// Number of partitions of K dimension of GEMM
   >;
 };
 
